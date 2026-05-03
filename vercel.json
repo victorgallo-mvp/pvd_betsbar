@@ -1,5 +1,5 @@
 {
-  "buildCommand": "pnpm --filter web run build",
+  "buildCommand": "pnpm --filter @pdv/shared run build && pnpm --filter web run build",
   "outputDirectory": "apps/web/dist",
   "installCommand": "pnpm install",
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
