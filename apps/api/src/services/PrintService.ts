@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client'
-// @ts-expect-error — node-thermal-printer lacks complete type definitions
+// @ts-ignore
 import ThermalPrinter from 'node-thermal-printer'
 import { readConfig } from '../appConfig.js'
 
