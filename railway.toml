@@ -1,6 +1,6 @@
 [build]
 builder = "nixpacks"
-buildCommand = "pnpm --filter api run build && pnpm --filter api exec prisma generate"
+buildCommand = "pnpm --filter api exec prisma generate && pnpm --filter api run build"
 
 [deploy]
 startCommand = "pnpm --filter api exec prisma db push && pnpm --filter api run start"
