@@ -1,0 +1,47 @@
+00:00:01,080 --> 00:00:09,240 [Speaker 0]
+Veja como é fácil operar o módulo Mesa do PDV Mafra. Na tela principal, toque em "Venda", digite a senha do operador, 
+
+00:00:11,880 --> 00:00:13,760 [Speaker 0]
+toque na opção "Mesa", 
+
+00:00:17,020 --> 00:00:20,020 [Speaker 0]
+digite o número da mesa e toque em "OK". 
+
+00:00:25,740 --> 00:00:28,840 [Speaker 0]
+Selecione os produtos conforme escolha do cliente 
+
+00:00:30,220 --> 00:00:32,560 [Speaker 0]
+e ao finalizar, toque em "Concluir". 
+
+00:00:38,460 --> 00:00:51,560 [Speaker 0]
+É, você pode notar que tem uma mesa com o status em amarelo. É, é uma mesa que já pediu conta. Então, isso facilita na hora de escolher qual mesa eu vou fechar. 
+
+00:00:52,740 --> 00:00:55,020 [Speaker 0]
+Ééé, isso te dá 
+
+00:00:56,620 --> 00:00:59,800 [Speaker 0]
+uma nuance de como tá a movimentação da casa, tá? 
+
+00:01:01,120 --> 00:01:03,920 [Speaker 0]
+É, agora vamos finalizar. Toquei na mesa nove, 
+
+00:01:05,519 --> 00:01:06,470 [Speaker 0]
+toco em conta, 
+
+00:01:08,040 --> 00:01:10,260 [Speaker 0]
+coloco a quantidade de pessoas 
+
+00:01:11,320 --> 00:01:25,740 [Speaker 0]
+e o sistema vai fazer a divisão exata para a quantidade de pessoas informadas. Logo após, vocês podem ver que a mesa nove também ficou amarela, com o status de mesa encerrada, aguardando pagamento. 
+
+00:01:27,070 --> 00:01:35,000 [Speaker 0]
+Toco na mesa, ela me leva diretamente pra tela de pagamento. Seleciono qual que foi a forma escolhida pelo cliente 
+
+00:01:36,920 --> 00:01:38,460 [Speaker 0]
+e toco em "OK". 
+
+00:01:40,740 --> 00:01:47,920 [Speaker 0]
+Pronto. Mesa finalizada com sucesso. Viu como é fácil operar o módulo de mesa? 
+
+00:01:47,920 --> 00:01:50,020 [Speaker 1]
+[silêncio]

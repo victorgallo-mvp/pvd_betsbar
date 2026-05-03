@@ -1,0 +1,26 @@
+00:00:00,459 --> 00:00:03,799 [Speaker 0]
+Veja como é fácil a venda de ficha no PDV Mafra. 
+
+00:00:05,579 --> 00:00:09,599 [Speaker 0]
+Na tela principal, toque em Venda, digite a senha do operador, 
+
+00:00:11,479 --> 00:00:16,399 [Speaker 0]
+selecione os produtos solicitados pelo cliente e toque em Pagar. 
+
+00:00:18,639 --> 00:00:22,760 [Speaker 0]
+Na tela de pagamento, selecione a forma solicitada pelo cliente. 
+
+00:00:25,500 --> 00:00:26,959 [Speaker 0]
+Conclua o pagamento. 
+
+00:00:32,180 --> 00:00:34,579 [Speaker 0]
+Ele volta pra tela, toque em Pagar. 
+
+00:00:36,919 --> 00:00:39,759 [Speaker 0]
+Caso ele solicite o cupom fiscal, 
+
+00:00:40,959 --> 00:00:50,779 [Speaker 0]
+selecione a opção Impressa, Imprimir e confirme. Caso ele não solicite ou não precise, deixe não imprimir e confirme. 
+
+00:00:51,899 --> 00:00:58,139 [Speaker 0]
+Note que ele só vai imprimir as fichas após o recebimento dos valores do cliente

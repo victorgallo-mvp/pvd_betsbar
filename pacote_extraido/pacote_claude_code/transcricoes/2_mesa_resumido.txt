@@ -1,0 +1,20 @@
+00:00:00,639 --> 00:00:04,440 [Speaker 0]
+Veja como é fácil operar o módulo de mesa do PDV Mafra. 
+
+00:00:05,579 --> 00:00:09,079 [Speaker 0]
+Toque na tela de venda, informe a senha do operador, 
+
+00:00:10,659 --> 00:00:11,939 [Speaker 0]
+toque no módulo Mesa, 
+
+00:00:13,559 --> 00:00:15,039 [Speaker 0]
+informe o número da mesa, 
+
+00:00:19,359 --> 00:00:22,819 [Speaker 0]
+lance os produtos conforme solicitado pelo cliente. 
+
+00:00:29,399 --> 00:00:32,419 [Speaker 0]
+Após finalizar o lançamento, toque em Concluir. 
+
+00:00:33,719 --> 00:00:34,819 [Speaker 0]
+Viu como é fácil?
