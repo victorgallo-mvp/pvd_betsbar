@@ -3,7 +3,7 @@ builder = "nixpacks"
 buildCommand = "pnpm --filter @pdv/shared run build && pnpm --filter api exec prisma generate && pnpm --filter api run build"
 
 [deploy]
-startCommand = "pnpm --filter api exec prisma db push && pnpm --filter api run start"
+startCommand = "pnpm --filter api exec prisma db push && pnpm --filter api exec tsx prisma/seed.ts && pnpm --filter api run start"
 healthcheckPath = "/health"
 healthcheckTimeout = 30
 restartPolicyType = "on_failure"
