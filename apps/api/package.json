@@ -1,0 +1,32 @@
+{
+  "name": "api",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:studio": "prisma studio",
+    "db:reset": "prisma migrate reset --force && tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@fastify/cors": "^9.0.0",
+    "@fastify/websocket": "^10.0.0",
+    "@pdv/shared": "workspace:*",
+    "@prisma/client": "^5.16.0",
+    "bcryptjs": "^2.4.3",
+    "fastify": "^4.28.0",
+    "node-thermal-printer": "^4.6.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "prisma": "^5.16.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.0"
+  }
+}

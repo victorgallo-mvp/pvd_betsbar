@@ -1,0 +1,15 @@
+{
+  "establishment": {
+    "name": "Bar do Zé",
+    "address": "Rua das Flores, 42",
+    "cnpj": "00.000.000/0001-00",
+    "phone": "(11) 99999-0000"
+  },
+  "printer": {
+    "type": "html",
+    "ip": "192.168.1.100",
+    "port": 9100,
+    "width": 80,
+    "characterSet": "PC860_PORTUGUESE"
+  }
+}

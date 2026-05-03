@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+    overflow: hidden;
+    background-color: #0f172a;
+    color: #f1f5f9;
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* Prevent text selection on touch UI */
+  * {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  input, textarea {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+}
+
+@layer utilities {
+  .touch-btn {
+    @apply active:scale-95 transition-transform duration-75;
+  }
+}

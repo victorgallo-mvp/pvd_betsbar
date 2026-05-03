@@ -1,0 +1,127 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String        @id @default(cuid())
+  name         String
+  pin          String        // bcrypt hash
+  role         String        // 'admin' | 'operator' | 'waiter'
+  active       Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  sales        Sale[]
+  cashSessions CashSession[]
+}
+
+model Category {
+  id           String    @id @default(cuid())
+  name         String
+  color        String    // hex color
+  icon         String    // lucide icon name
+  displayOrder Int
+  active       Boolean   @default(true)
+  products     Product[]
+}
+
+model Product {
+  id         String     @id @default(cuid())
+  categoryId String
+  category   Category   @relation(fields: [categoryId], references: [id])
+  name       String
+  price      Decimal
+  isFavorite Boolean    @default(false)
+  active     Boolean    @default(true)
+  saleItems  SaleItem[]
+}
+
+model Table {
+  id          String    @id @default(cuid())
+  number      Int       @unique
+  status      String    @default("free") // 'free' | 'open' | 'awaiting_payment'
+  openedAt    DateTime?
+  peopleCount Int?
+  sales       Sale[]
+}
+
+model Sale {
+  id              String     @id @default(cuid())
+  type            String     // 'table' | 'counter' | 'delivery'
+  tableId         String?
+  table           Table?     @relation(fields: [tableId], references: [id])
+  peopleCount     Int?
+  openedAt        DateTime   @default(now())
+  closedAt        DateTime?
+  operatorId      String
+  operator        User       @relation(fields: [operatorId], references: [id])
+  status          String     @default("open") // 'open' | 'awaiting_payment' | 'paid' | 'cancelled'
+  subtotal        Decimal    @default(0)
+  discount        Decimal    @default(0)
+  surcharge       Decimal    @default(0)
+  total           Decimal    @default(0)
+  perPersonAmount Decimal?
+  customerName    String?
+  customerAddress String?
+  items           SaleItem[]
+  payments        Payment[]
+  printJobs       PrintJob[]
+}
+
+model SaleItem {
+  id               String   @id @default(cuid())
+  saleId           String
+  sale             Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productId        String
+  product          Product  @relation(fields: [productId], references: [id])
+  qty              Int
+  unitPrice        Decimal  // price snapshot at time of sale
+  sentToProduction Boolean  @default(false)
+  cancelled        Boolean  @default(false)
+  notes            String?
+  createdAt        DateTime @default(now())
+}
+
+model Payment {
+  id     String   @id @default(cuid())
+  saleId String
+  sale   Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  method String   // 'cash' | 'debit' | 'credit' | 'pix' | 'voucher' | 'conta_receita'
+  amount Decimal
+  paidAt DateTime @default(now())
+}
+
+model CashSession {
+  id          String       @id @default(cuid())
+  operatorId  String
+  operator    User         @relation(fields: [operatorId], references: [id])
+  openedAt    DateTime     @default(now())
+  closedAt    DateTime?
+  openingFund Decimal
+  total       Decimal?
+  withdrawals Withdrawal[]
+}
+
+model Withdrawal {
+  id            String      @id @default(cuid())
+  cashSessionId String
+  cashSession   CashSession @relation(fields: [cashSessionId], references: [id])
+  amount        Decimal
+  reason        String
+  createdAt     DateTime    @default(now())
+}
+
+model PrintJob {
+  id           String    @id @default(cuid())
+  saleId       String
+  sale         Sale      @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  type         String    // 'kitchen' | 'receipt' | 'fiche'
+  status       String    @default("pending") // 'pending' | 'printed' | 'skipped'
+  triggerEvent String    // 'item_added' | 'payment_confirmed'
+  payload      String    // JSON with print data
+  printedAt    DateTime?
+  createdAt    DateTime  @default(now())
+}
