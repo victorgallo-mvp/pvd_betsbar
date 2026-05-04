@@ -228,19 +228,15 @@ export default function Comanda() {
     </div>
   )
 
-  const ActionBar = ({ compact }: { compact?: boolean }) => (
-    <div className={`${compact ? 'grid grid-cols-4' : 'grid grid-cols-6'} gap-1 p-2 bg-slate-800 border-t border-slate-700 shrink-0`}>
+  const ActionBar = ({ tablet }: { tablet?: boolean }) => (
+    <div className={`${tablet ? 'grid grid-cols-6' : 'grid grid-cols-3'} gap-1 p-2 bg-slate-800 border-t border-slate-700 shrink-0`}>
       {[
-        { icon: Receipt, label: 'Conta', action: () => setShowConta(true), active: sale?.status !== 'awaiting_payment' },
-        ...(compact ? [] : [
-          { icon: XCircle, label: 'Canc.', action: () => {}, active: false },
-        ]),
-        { icon: CreditCard, label: 'Pagar', action: handlePagar, active: true },
-        ...(compact ? [] : [
-          { icon: Plus, label: 'Qtde', action: () => {}, active: false },
-          { icon: ArrowRightLeft, label: 'Transf.', action: () => {}, active: false },
-        ]),
-        { icon: CheckCheck, label: 'Concluir', action: handleConcluir, active: pendingCount > 0 },
+        { icon: Receipt,        label: 'Conta',    action: () => setShowConta(true), active: sale?.status !== 'awaiting_payment' },
+        { icon: XCircle,        label: 'Canc.',    action: () => {},                 active: false },
+        { icon: CreditCard,     label: 'Pagar',    action: handlePagar,              active: true },
+        { icon: Plus,           label: 'Qtde',     action: () => {},                 active: false },
+        { icon: ArrowRightLeft, label: 'Transf.',  action: () => {},                 active: false },
+        { icon: CheckCheck,     label: 'Concluir', action: handleConcluir,           active: pendingCount > 0 },
       ].map(({ icon: Icon, label, action, active }) => (
         <button key={label} onClick={action} disabled={!active}
           className={`flex flex-col items-center justify-center gap-0.5 py-2 rounded-lg text-[10px] touch-btn
@@ -249,7 +245,7 @@ export default function Comanda() {
               : label === 'Pagar' ? 'bg-blue-700 hover:bg-blue-600 text-white'
               : 'bg-slate-700 hover:bg-slate-600 text-slate-200'
               : 'bg-slate-800 text-slate-600 cursor-not-allowed'}`}>
-          <Icon size={compact ? 20 : 16} />
+          <Icon size={18} />
           <span className="leading-tight text-center">{label}</span>
           {label === 'Concluir' && pendingCount > 0 && (
             <span className="bg-amber-500 text-black text-[9px] font-bold px-1 rounded-full">{pendingCount}</span>
@@ -306,10 +302,13 @@ export default function Comanda() {
             <div className="flex-1 flex flex-col min-h-0">
               <ItemList />
               <Totals />
-              <ActionBar compact />
             </div>
           )}
         </div>
+
+        {/* Action bar — always visible on both tabs */}
+        <ActionBar />
+
         {/* Bottom tab switcher */}
         <div className="grid grid-cols-2 border-t border-slate-700 shrink-0">
           <button onClick={() => setPosTab('products')}
@@ -341,7 +340,7 @@ export default function Comanda() {
         <div className="w-[45%] flex flex-col border-r border-slate-700 min-h-0">
           <ItemList />
           <Totals />
-          <ActionBar />
+          <ActionBar tablet />
         </div>
         <ProductPanel />
       </div>

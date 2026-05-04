@@ -3,6 +3,7 @@ import type { TableDTO } from '@pdv/shared'
 interface Props {
   table: TableDTO
   onClick: () => void
+  compact?: boolean
 }
 
 function formatElapsed(openedAt: string): string {
@@ -22,7 +23,7 @@ const STATUS_STYLES = {
   awaiting_payment: 'bg-amber-900 border-amber-500 text-amber-100',
 }
 
-export function MesaCard({ table, onClick }: Props) {
+export function MesaCard({ table, onClick, compact = false }: Props) {
   const style = STATUS_STYLES[table.status as keyof typeof STATUS_STYLES] ?? STATUS_STYLES.free
   const isActive = table.status !== 'free'
 
@@ -31,17 +32,18 @@ export function MesaCard({ table, onClick }: Props) {
       onClick={onClick}
       className={`
         ${style}
-        border-2 rounded-xl p-3 flex flex-col items-center justify-center
-        touch-btn min-w-[80px] aspect-square
+        border-2 rounded-xl flex flex-col items-center justify-center
+        touch-btn aspect-square
         transition-colors duration-150
+        ${compact ? 'p-1.5 min-w-[60px]' : 'p-3 min-w-[80px]'}
       `}
     >
-      <span className="text-3xl font-bold leading-none">{table.number}</span>
+      <span className={`font-bold leading-none ${compact ? 'text-xl' : 'text-3xl'}`}>{table.number}</span>
       {isActive && table.openedAt && (
-        <span className="text-xs mt-1 opacity-80">{formatElapsed(table.openedAt)}</span>
+        <span className={`mt-1 opacity-80 ${compact ? 'text-[9px]' : 'text-xs'}`}>{formatElapsed(table.openedAt)}</span>
       )}
       {table.status === 'awaiting_payment' && (
-        <span className="text-[10px] mt-1 font-semibold opacity-90">conta</span>
+        <span className={`mt-0.5 font-semibold opacity-90 ${compact ? 'text-[8px]' : 'text-[10px]'}`}>conta</span>
       )}
     </button>
   )

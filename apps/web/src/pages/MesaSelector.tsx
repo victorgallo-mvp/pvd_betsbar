@@ -107,24 +107,44 @@ export default function MesaSelector() {
       <div className="h-full flex flex-col bg-slate-900">
         {topBar}
 
-        {/* Compact number display */}
-        <div className="px-4 pt-3 pb-1 shrink-0">
-          <div className="bg-slate-800 rounded-xl px-4 py-2 flex items-center justify-between border border-slate-700">
+        {/* Compact number input row */}
+        <div className="px-3 pt-2 pb-1 shrink-0 flex items-center gap-2">
+          <div className="flex-1 bg-slate-800 rounded-xl px-3 py-2 flex items-center justify-between border border-slate-700">
             <span className="text-slate-500 text-sm">Mesa:</span>
-            <span className="text-3xl font-mono font-bold text-slate-100">
+            <span className="text-2xl font-mono font-bold text-slate-100 min-w-[2ch] text-right">
               {inputNum || <span className="text-slate-700">_</span>}
             </span>
           </div>
+          {[1,2,3,4,5,6,7,8,9,'⌫',0,'✓'].map((k) => (
+            <button
+              key={k}
+              onClick={() => {
+                if (k === '⌫') { setInputNum((v) => v.slice(0, -1)); return }
+                if (k === '✓') { handleOk(); return }
+                if (inputNum.length < 2) setInputNum((v) => v + String(k))
+              }}
+              className={`w-9 h-9 rounded-lg text-sm font-bold touch-btn shrink-0
+                ${k === '✓' ? 'bg-emerald-600 text-white' : k === '⌫' ? 'bg-slate-700 text-slate-300' : 'bg-slate-700 text-slate-200 hover:bg-slate-600'}`}
+            >
+              {k}
+            </button>
+          ))}
         </div>
 
-        {/* Keypad */}
-        <div className="px-4 py-2 shrink-0">
-          <NumericKeypad value={inputNum} onChange={setInputNum} maxLength={2} onConfirm={handleOk} />
-        </div>
-
-        {/* Active mesas — scrollable below keypad */}
-        <div className="flex-1 overflow-y-auto px-4 pb-2">
-          {mesaGrid('grid-cols-3', activeTables)}
+        {/* All tables — scrollable grid */}
+        <div className="flex-1 overflow-y-auto px-3 pb-2 pt-1">
+          {isLoading ? (
+            <div className="text-slate-500 text-sm animate-pulse py-4 text-center">Carregando mesas...</div>
+          ) : tables.length === 0 ? (
+            <div className="text-slate-600 text-sm text-center py-4">Nenhuma mesa</div>
+          ) : (
+            <div className="grid grid-cols-4 gap-2">
+              {tables.map((t) => (
+                <MesaCard key={t.id} table={t} onClick={() => handleSelectMesa(t.number)} compact />
+              ))}
+            </div>
+          )}
+          {busyMsg && <div className="text-amber-400 text-sm font-medium mt-2 text-center">{busyMsg}</div>}
         </div>
 
         {bottomBar}
