@@ -109,26 +109,24 @@ export default function MesaSelector() {
 
         {/* Compact number input row */}
         <div className="px-3 pt-2 pb-1 shrink-0 flex items-center gap-2">
-          <div className="flex-1 bg-slate-800 rounded-xl px-3 py-2 flex items-center justify-between border border-slate-700">
-            <span className="text-slate-500 text-sm">Mesa:</span>
-            <span className="text-2xl font-mono font-bold text-slate-100 min-w-[2ch] text-right">
-              {inputNum || <span className="text-slate-700">_</span>}
-            </span>
-          </div>
-          {[1,2,3,4,5,6,7,8,9,'⌫',0,'✓'].map((k) => (
-            <button
-              key={k}
-              onClick={() => {
-                if (k === '⌫') { setInputNum((v) => v.slice(0, -1)); return }
-                if (k === '✓') { handleOk(); return }
-                if (inputNum.length < 2) setInputNum((v) => v + String(k))
-              }}
-              className={`w-9 h-9 rounded-lg text-sm font-bold touch-btn shrink-0
-                ${k === '✓' ? 'bg-emerald-600 text-white' : k === '⌫' ? 'bg-slate-700 text-slate-300' : 'bg-slate-700 text-slate-200 hover:bg-slate-600'}`}
-            >
-              {k}
-            </button>
-          ))}
+          <input
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={2}
+            value={inputNum}
+            onChange={(e) => setInputNum(e.target.value.replace(/\D/g, '').slice(0, 2))}
+            onKeyDown={(e) => e.key === 'Enter' && handleOk()}
+            placeholder="Nº mesa"
+            className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-slate-100 text-lg font-mono font-bold placeholder-slate-600 outline-none focus:border-emerald-500"
+          />
+          <button
+            onClick={handleOk}
+            disabled={!inputNum}
+            className="px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold text-sm touch-btn disabled:opacity-40 shrink-0"
+          >
+            Ir
+          </button>
         </div>
 
         {/* All tables — scrollable grid */}

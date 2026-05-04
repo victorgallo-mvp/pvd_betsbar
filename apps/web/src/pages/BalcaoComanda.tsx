@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Trash2, CreditCard, Minus } from 'lucide-react'
+import { ArrowLeft, Trash2, CreditCard, Minus, ShoppingCart, List } from 'lucide-react'
 import { useSale } from '../stores/useSale'
+import { useDevice } from '../hooks/useDevice'
 import type { CategoryDTO, ProductDTO } from '@pdv/shared'
 import { api } from '../lib/api'
 
@@ -29,12 +30,14 @@ export default function BalcaoComanda() {
   const navigate = useNavigate()
   const { saleOperator, currentSale, loadSale, openSale, addItem, removeItem, clearSale } =
     useSale()
+  const { isPOS } = useDevice()
 
   const [categories, setCategories] = useState<CategoryDTO[]>([])
   const [products, setProducts] = useState<ProductDTO[]>([])
   const [selectedCat, setSelectedCat] = useState<string | null>(null)
   const [addingItem, setAddingItem] = useState<string | null>(null)
-  const creatingRef = useRef(false) // prevent double sale creation on fast taps
+  const [posTab, setPosTab] = useState<'products' | 'pedido'>('products')
+  const creatingRef = useRef(false)
 
   const isDelivery = !!paramSaleId
   const saleType = isDelivery ? 'delivery' : 'counter'
@@ -110,147 +113,138 @@ export default function BalcaoComanda() {
     ? `Delivery — ${currentSale?.customerName ?? '...'}`
     : 'Balcão'
 
+  const topBar = (
+    <div className="flex items-center gap-3 px-4 py-2 bg-slate-800 border-b border-slate-700 shrink-0">
+      <button onClick={() => navigate('/venda')} className="text-slate-400 hover:text-slate-200 touch-btn">
+        <ArrowLeft size={22} />
+      </button>
+      <span className="bg-slate-600 text-white px-3 py-1 rounded-full text-sm font-bold">
+        {headerLabel}
+      </span>
+      <div className="flex-1" />
+      <span className="text-slate-500 text-xs">{saleOperator?.name}</span>
+    </div>
+  )
+
+  const ItemList = () => (
+    <div className="flex-1 overflow-y-auto p-2 space-y-1">
+      {activeItems.length === 0 ? (
+        <div className="text-slate-600 text-sm p-4 text-center">
+          {isPOS ? 'Vá para "Produtos" para adicionar itens.' : 'Toque nos produtos para adicionar.'}
+        </div>
+      ) : (
+        activeItems.map((item, idx) => (
+          <div key={item.id} className="flex items-center gap-2 px-2 py-2 rounded-lg bg-slate-800">
+            <span className="text-slate-600 text-xs w-4 shrink-0">{idx + 1}</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm text-slate-200 font-medium truncate">{item.productName}</div>
+              <div className="text-xs text-slate-500">{item.qty} × {fmtBRL(item.unitPrice)}</div>
+            </div>
+            <button onClick={() => saleId && removeItem(saleId, item.id)} className="text-slate-600 hover:text-rose-400 touch-btn shrink-0">
+              <Minus size={14} />
+            </button>
+            <span className="text-sm font-semibold text-slate-300 shrink-0 w-16 text-right">{fmtBRL(item.subtotal)}</span>
+          </div>
+        ))
+      )}
+    </div>
+  )
+
+  const Totals = () => (
+    <div className="border-t border-slate-700 px-3 py-2 bg-slate-800/60 shrink-0">
+      <div className="flex items-baseline justify-between">
+        <div className="flex items-baseline gap-2">
+          <span className="text-lg font-bold text-slate-100">Total</span>
+          <span className="text-xs text-slate-500">{activeItems.length} iten{activeItems.length !== 1 ? 's' : ''}</span>
+        </div>
+        <span className="text-2xl font-bold text-emerald-400">{fmtBRL(currentSale?.total ?? 0)}</span>
+      </div>
+    </div>
+  )
+
+  const ActionButtons = () => (
+    <div className="grid grid-cols-2 gap-2 p-2 bg-slate-800 border-t border-slate-700 shrink-0">
+      <button onClick={handleLimpar} disabled={activeItems.length === 0}
+        className="flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-300 touch-btn disabled:opacity-40 disabled:cursor-not-allowed font-medium text-sm">
+        <Trash2 size={16} />Limpar
+      </button>
+      <button onClick={handlePagar} disabled={activeItems.length === 0}
+        className="flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white touch-btn disabled:opacity-40 disabled:cursor-not-allowed font-bold text-base">
+        <CreditCard size={18} />Pagar
+      </button>
+    </div>
+  )
+
+  const ProductPanel = () => (
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className="grid grid-cols-4 gap-1 p-2 shrink-0">
+        {categories.map((cat) => (
+          <button key={cat.id} onClick={() => setSelectedCat(cat.id)}
+            className={`py-3 px-1 rounded-lg text-xs font-semibold text-white text-center leading-tight touch-btn transition-colors
+              ${selectedCat === cat.id ? (CATEGORY_COLORS[cat.id] ?? 'bg-emerald-600') : 'bg-slate-700 hover:bg-slate-600'}`}>
+            {cat.name}
+          </button>
+        ))}
+      </div>
+      <div className="flex-1 overflow-y-auto grid grid-cols-2 gap-1 p-2 content-start">
+        {products.map((prod) => (
+          <button key={prod.id} onClick={() => handleAddProduct(prod.id)} disabled={addingItem === prod.id}
+            className={`flex flex-col items-start p-2.5 rounded-lg border text-left touch-btn transition-colors
+              ${addingItem === prod.id ? 'bg-emerald-900 border-emerald-600 opacity-70' : 'bg-slate-800 border-slate-700 hover:bg-slate-700 hover:border-slate-500'}`}>
+            <span className="text-sm font-medium text-slate-200 leading-tight">{prod.name}</span>
+            <span className="text-emerald-400 font-bold text-sm mt-1">{fmtBRL(prod.price)}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+
+  // ── POS portrait layout ───────────────────────────────────
+  if (isPOS) {
+    return (
+      <div className="h-full flex flex-col bg-slate-900">
+        {topBar}
+        <div className="flex-1 min-h-0 flex flex-col">
+          {posTab === 'products' ? (
+            <ProductPanel />
+          ) : (
+            <div className="flex-1 flex flex-col min-h-0">
+              <ItemList />
+              <Totals />
+            </div>
+          )}
+        </div>
+        <ActionButtons />
+        <div className="grid grid-cols-2 border-t border-slate-700 shrink-0">
+          <button onClick={() => setPosTab('products')}
+            className={`flex items-center justify-center gap-2 py-3 text-sm font-medium touch-btn border-r border-slate-700 ${posTab === 'products' ? 'text-emerald-400 bg-slate-800' : 'text-slate-500'}`}>
+            <ShoppingCart size={18} /> Produtos
+          </button>
+          <button onClick={() => setPosTab('pedido')}
+            className={`flex items-center justify-center gap-2 py-3 text-sm font-medium touch-btn ${posTab === 'pedido' ? 'text-emerald-400 bg-slate-800' : 'text-slate-500'}`}>
+            <List size={18} /> Pedido
+            {activeItems.length > 0 && (
+              <span className="bg-emerald-600 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                {activeItems.length}
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Tablet landscape layout ───────────────────────────────
   return (
     <div className="h-full flex flex-col bg-slate-900">
-      {/* Top bar */}
-      <div className="flex items-center gap-3 px-4 py-2 bg-slate-800 border-b border-slate-700 shrink-0">
-        <button onClick={() => navigate('/venda')} className="text-slate-400 hover:text-slate-200 touch-btn">
-          <ArrowLeft size={22} />
-        </button>
-        <span className="bg-slate-600 text-white px-3 py-1 rounded-full text-sm font-bold">
-          {headerLabel}
-        </span>
-        <div className="flex-1" />
-        <span className="text-slate-500 text-xs">{saleOperator?.name}</span>
-      </div>
-
-      {/* Body: split layout */}
+      {topBar}
       <div className="flex-1 flex min-h-0">
-        {/* LEFT — item list */}
         <div className="w-[42%] flex flex-col border-r border-slate-700 min-h-0">
-          {/* Items */}
-          <div className="flex-1 overflow-y-auto p-2 space-y-1">
-            {activeItems.length === 0 ? (
-              <div className="text-slate-600 text-sm p-4 text-center">
-                Toque nos produtos para adicionar.
-              </div>
-            ) : (
-              activeItems.map((item, idx) => (
-                <div
-                  key={item.id}
-                  className="flex items-center gap-2 px-2 py-2 rounded-lg bg-slate-800"
-                >
-                  <span className="text-slate-600 text-xs w-4 shrink-0">{idx + 1}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm text-slate-200 font-medium truncate">{item.productName}</div>
-                    <div className="text-xs text-slate-500">
-                      {item.qty} × {fmtBRL(item.unitPrice)}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => saleId && removeItem(saleId, item.id)}
-                    className="text-slate-600 hover:text-rose-400 touch-btn shrink-0"
-                  >
-                    <Minus size={14} />
-                  </button>
-                  <span className="text-sm font-semibold text-slate-300 shrink-0 w-16 text-right">
-                    {fmtBRL(item.subtotal)}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* Total */}
-          <div className="border-t border-slate-700 px-3 py-2 bg-slate-800/60 shrink-0">
-            <div className="flex items-baseline justify-between">
-              <div className="flex items-baseline gap-2">
-                <span className="text-lg font-bold text-slate-100">Total</span>
-                <span className="text-xs text-slate-500">
-                  {activeItems.length} iten{activeItems.length !== 1 ? 's' : ''}
-                </span>
-              </div>
-              <span className="text-2xl font-bold text-emerald-400">
-                {fmtBRL(currentSale?.total ?? 0)}
-              </span>
-            </div>
-          </div>
-
-          {/* Action buttons */}
-          <div className="grid grid-cols-2 gap-2 p-2 bg-slate-800 border-t border-slate-700 shrink-0">
-            <button
-              onClick={handleLimpar}
-              disabled={activeItems.length === 0}
-              className="
-                flex items-center justify-center gap-2 py-3 rounded-xl
-                bg-slate-700 hover:bg-slate-600 text-slate-300
-                touch-btn disabled:opacity-40 disabled:cursor-not-allowed
-                font-medium text-sm
-              "
-            >
-              <Trash2 size={16} />
-              Limpar
-            </button>
-            <button
-              onClick={handlePagar}
-              disabled={activeItems.length === 0}
-              className="
-                flex items-center justify-center gap-2 py-3 rounded-xl
-                bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white
-                touch-btn disabled:opacity-40 disabled:cursor-not-allowed
-                font-bold text-base
-              "
-            >
-              <CreditCard size={18} />
-              Pagar
-            </button>
-          </div>
+          <ItemList />
+          <Totals />
+          <ActionButtons />
         </div>
-
-        {/* RIGHT — categories + products */}
-        <div className="flex-1 flex flex-col min-h-0">
-          {/* Category grid */}
-          <div className="grid grid-cols-4 gap-1 p-2 shrink-0">
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setSelectedCat(cat.id)}
-                className={`
-                  py-3 px-1 rounded-lg text-xs font-semibold text-white text-center leading-tight
-                  touch-btn transition-colors
-                  ${selectedCat === cat.id
-                    ? (CATEGORY_COLORS[cat.id] ?? 'bg-emerald-600')
-                    : 'bg-slate-700 hover:bg-slate-600'
-                  }
-                `}
-              >
-                {cat.name}
-              </button>
-            ))}
-          </div>
-
-          {/* Product grid */}
-          <div className="flex-1 overflow-y-auto grid grid-cols-2 gap-1 p-2 content-start">
-            {products.map((prod) => (
-              <button
-                key={prod.id}
-                onClick={() => handleAddProduct(prod.id)}
-                disabled={addingItem === prod.id}
-                className={`
-                  flex flex-col items-start p-2.5 rounded-lg border text-left
-                  touch-btn transition-colors
-                  ${addingItem === prod.id
-                    ? 'bg-emerald-900 border-emerald-600 opacity-70'
-                    : 'bg-slate-800 border-slate-700 hover:bg-slate-700 hover:border-slate-500'
-                  }
-                `}
-              >
-                <span className="text-sm font-medium text-slate-200 leading-tight">{prod.name}</span>
-                <span className="text-emerald-400 font-bold text-sm mt-1">{fmtBRL(prod.price)}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+        <ProductPanel />
       </div>
     </div>
   )
