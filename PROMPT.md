@@ -2,7 +2,7 @@
 
 ## Contexto
 
-Vou construir um PDV (Ponto de Venda) para bar/restaurante inspirado em um sistema de referência (Mafra PDV). Material anexado :
+Vou construir um PDV (Ponto de Venda) para bar/restaurante inspirado em um sistema de referência (Mafra PDV). Material anexado:
 
 - **10 imagens** numeradas mostrando as principais telas
 - **4 transcrições de narração** dos vídeos de demonstração (`.txt` na pasta `transcricoes/`)
