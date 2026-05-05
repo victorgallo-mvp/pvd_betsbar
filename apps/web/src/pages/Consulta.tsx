@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Search, X } from 'lucide-react'
 import type { ProductDTO, CategoryDTO } from '@pdv/shared'
+import { api } from '../lib/api'
 
 export default function Consulta() {
   const navigate = useNavigate()
@@ -13,8 +14,8 @@ export default function Consulta() {
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/products').then((r) => r.json()),
-      fetch('/api/products/categories').then((r) => r.json()),
+      api.get<ProductDTO[]>('/products'),
+      api.get<CategoryDTO[]>('/products/categories'),
     ]).then(([prods, cats]) => {
       setProducts(prods)
       setCategories(cats)
