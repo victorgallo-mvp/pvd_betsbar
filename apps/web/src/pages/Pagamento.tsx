@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Check } from 'lucide-react'
+import { ArrowLeft, Check, Users } from 'lucide-react'
 import { useSale } from '../stores/useSale'
 import { useDevice } from '../hooks/useDevice'
 import { CurrencyKeypad, formatCents } from '../components/CurrencyKeypad'
@@ -29,20 +29,39 @@ export default function Pagamento() {
   const [cents, setCents] = useState(0)
   const [method, setMethod] = useState<Method>('cash')
   const [done, setDone] = useState(false)
+  const [splitPeople, setSplitPeople] = useState(1)
+  const [darTroco, setDarTroco] = useState(true)
 
   useEffect(() => { if (!saleOperator) navigate('/venda') }, [saleOperator, navigate])
   useEffect(() => { if (saleId) loadSale(saleId) }, [saleId, loadSale])
   useEffect(() => {
-    if (currentSale) setCents(Math.round(currentSale.total * 100))
+    if (currentSale) {
+      const paid = currentSale.payments?.reduce((s, p) => s + p.amount, 0) ?? 0
+      const residual = Math.max(0, currentSale.total - paid)
+      setCents(Math.round((residual / splitPeople) * 100))
+    }
   }, [currentSale?.id])
 
   const sale = currentSale
   const totalCents = Math.round((sale?.total ?? 0) * 100)
-  const trocoCents = method === 'cash' ? Math.max(0, cents - totalCents) : 0
+  const paidCents = Math.round((sale?.payments?.reduce((s, p) => s + p.amount, 0) ?? 0) * 100)
+  const residualCents = Math.max(0, totalCents - paidCents)
+  const splitPartCents = Math.round(residualCents / splitPeople)
+  const referenceCents = splitPeople > 1 ? splitPartCents : residualCents
+  const trocoCents = method === 'cash' ? Math.max(0, cents - referenceCents) : 0
+  // amount actually applied to the sale: if giving change back, net = cents - troco; else full cents
+  const amountToApply = trocoCents > 0 && !darTroco ? cents : cents - trocoCents
+
+  const handleSplitChange = (n: number) => {
+    const people = Math.max(1, n)
+    setSplitPeople(people)
+    const curResidual = Math.max(0, totalCents - paidCents)
+    setCents(Math.round(curResidual / people))
+  }
 
   const handleOk = async () => {
     if (!saleId || cents <= 0) return
-    const result = await registerPayment(saleId, method, cents / 100)
+    const result = await registerPayment(saleId, method, amountToApply / 100)
     if (result.status === 'paid') {
       if (result.type === 'table') {
         setDone(true)
@@ -50,6 +69,14 @@ export default function Pagamento() {
       } else {
         navigate(`/print-confirm/${saleId}`, { state: { trocoCents } })
       }
+    } else {
+      // partial — reload, decrement split, recalc
+      await loadSale(saleId)
+      const newPeople = Math.max(1, splitPeople - 1)
+      setSplitPeople(newPeople)
+      const newResidual = Math.max(0, totalCents - paidCents - amountToApply)
+      setCents(Math.round(newResidual / newPeople))
+      setDarTroco(true)
     }
   }
 
@@ -83,17 +110,63 @@ export default function Pagamento() {
   )
 
   const valorTroco = (
-    <div className="grid grid-cols-2 gap-2 shrink-0">
-      <div className="bg-slate-800 rounded-xl px-3 py-2">
-        <div className="text-xs text-slate-500">Valor recebido</div>
-        <div className="text-2xl font-mono font-bold text-slate-100">R$ {formatCents(cents)}</div>
-      </div>
-      <div className="bg-slate-800 rounded-xl px-3 py-2">
-        <div className="text-xs text-slate-500">Troco</div>
-        <div className={`text-2xl font-mono font-bold ${trocoCents > 0 ? 'text-amber-400' : 'text-slate-500'}`}>
-          R$ {formatCents(trocoCents)}
+    <div className="flex flex-col gap-2 shrink-0">
+      {/* paid so far — only show when there are partial payments */}
+      {paidCents > 0 && (
+        <div className="grid grid-cols-2 gap-2">
+          <div className="bg-slate-800 rounded-xl px-3 py-2 border border-slate-600">
+            <div className="text-xs text-slate-500">Já pago</div>
+            <div className="text-lg font-mono font-bold text-emerald-400">R$ {formatCents(paidCents)}</div>
+          </div>
+          <div className="bg-slate-800 rounded-xl px-3 py-2 border border-amber-700">
+            <div className="text-xs text-slate-500">Falta pagar</div>
+            <div className="text-lg font-mono font-bold text-amber-400">R$ {formatCents(residualCents)}</div>
+          </div>
+        </div>
+      )}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="bg-slate-800 rounded-xl px-3 py-2">
+          <div className="text-xs text-slate-500">Valor recebido</div>
+          <div className="text-2xl font-mono font-bold text-slate-100">R$ {formatCents(cents)}</div>
+        </div>
+        <div className="bg-slate-800 rounded-xl px-3 py-2">
+          <div className="text-xs text-slate-500">Troco</div>
+          <div className={`text-2xl font-mono font-bold ${trocoCents > 0 ? 'text-amber-400' : 'text-slate-500'}`}>
+            R$ {formatCents(trocoCents)}
+          </div>
         </div>
       </div>
+      {trocoCents > 0 && (
+        <button
+          onClick={() => setDarTroco((v) => !v)}
+          className={`w-full py-2 rounded-xl text-sm font-semibold border-2 touch-btn transition-colors ${
+            darTroco
+              ? 'border-amber-500 bg-amber-900/30 text-amber-300'
+              : 'border-slate-600 bg-slate-800 text-slate-400'
+          }`}
+        >
+          {darTroco
+            ? `Dar troco — cobra R$ ${formatCents(amountToApply)}`
+            : `Sem troco — cobra R$ ${formatCents(cents)}`}
+        </button>
+      )}
+    </div>
+  )
+
+  const splitControl = (
+    <div className="flex items-center gap-2 shrink-0 bg-slate-800 rounded-xl px-3 py-2 border border-slate-700">
+      <Users size={16} className="text-slate-400 shrink-0" />
+      <span className="text-xs text-slate-400 flex-1">Dividir por</span>
+      <button onClick={() => handleSplitChange(splitPeople - 1)}
+        className="w-8 h-8 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold touch-btn flex items-center justify-center">
+        −
+      </button>
+      <span className="w-6 text-center text-slate-100 font-bold">{splitPeople}</span>
+      <button onClick={() => handleSplitChange(splitPeople + 1)}
+        className="w-8 h-8 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold touch-btn flex items-center justify-center">
+        +
+      </button>
+      <span className="text-xs text-slate-400 ml-1">= R$ {formatCents(Math.round(residualCents / splitPeople))}</span>
     </div>
   )
 
@@ -140,6 +213,7 @@ export default function Pagamento() {
         {topBar}
         <div className="flex-1 overflow-y-auto flex flex-col gap-3 p-3">
           {valorTroco}
+          {splitControl}
           {cedulas}
           <CurrencyKeypad cents={cents} onChange={setCents} disabled={isLoading} className="h-64" />
           {methodButtons('grid-cols-2')}
@@ -192,12 +266,27 @@ export default function Pagamento() {
                 {fmtBRL(sale.perPersonAmount)} × {sale.peopleCount} pessoas
               </div>
             )}
+            {(sale?.payments?.length ?? 0) > 0 && (
+              <div className="mt-2 pt-2 border-t border-slate-700 space-y-1">
+                <div className="text-xs text-slate-500 uppercase tracking-wide">Pagamentos</div>
+                {sale!.payments.map((p) => (
+                  <div key={p.id} className="flex justify-between text-xs">
+                    <span className="text-slate-400 capitalize">{p.method}</span>
+                    <span className="text-emerald-400">{fmtBRL(p.amount)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between text-xs font-bold text-amber-400 pt-1">
+                  <span>Falta</span><span>{fmtBRL(residualCents / 100)}</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* CENTER — keypad + methods */}
         <div className="flex-1 flex flex-col p-3 gap-2 min-h-0">
           {valorTroco}
+          {splitControl}
           {cedulas}
           <CurrencyKeypad cents={cents} onChange={setCents} disabled={isLoading} className="flex-1 min-h-0" />
           {methodButtons('grid-cols-2')}

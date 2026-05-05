@@ -119,6 +119,7 @@ export interface SaleDTO {
   customerName: string | null
   customerAddress: string | null
   items: SaleItemDTO[]
+  payments: PaymentDTO[]
 }
 
 export interface PaymentDTO {
