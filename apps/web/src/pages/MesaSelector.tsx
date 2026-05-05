@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, ShoppingBag, Bike, LogOut } from 'lucide-react'
 import { useTables } from '../stores/useTables'
 import { useSale } from '../stores/useSale'
+import { api } from '../lib/api'
+import type { SaleDTO } from '@pdv/shared'
 import { useWebSocket } from '../hooks/useWebSocket'
 import { useDevice } from '../hooks/useDevice'
 import { MesaCard } from '../components/MesaCard'
@@ -26,13 +28,13 @@ export default function MesaSelector() {
     if (!table) { setBusyMsg(`Mesa ${tableNumber} não existe`); setTimeout(() => setBusyMsg(''), 2000); return }
 
     if (table.status === 'awaiting_payment') {
-      const res = await fetch(`/api/tables/${table.id}/active-sale`)
-      if (res.ok) { const sale = await res.json(); navigate(`/pagamento/${sale.id}`) }
+      const sale = await api.get<SaleDTO>(`/tables/${table.id}/active-sale`)
+      navigate(`/pagamento/${sale.id}`)
       return
     }
     if (table.status === 'open') {
-      const res = await fetch(`/api/tables/${table.id}/active-sale`)
-      if (res.ok) { const sale = await res.json(); navigate(`/comanda/${sale.id}`) }
+      const sale = await api.get<SaleDTO>(`/tables/${table.id}/active-sale`)
+      navigate(`/comanda/${sale.id}`)
       return
     }
 
