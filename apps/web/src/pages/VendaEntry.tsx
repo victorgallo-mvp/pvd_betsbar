@@ -172,7 +172,7 @@ export default function VendaEntry() {
         </span>
       </div>
 
-      <div className="flex-1 flex items-center justify-center gap-6 p-8">
+      <div className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-4 p-8">
         {modes.map((mode) => {
           const Icon = mode.icon
           return (
@@ -183,7 +183,7 @@ export default function VendaEntry() {
               className={`
                 ${mode.color}
                 flex flex-col items-center justify-center gap-3
-                w-52 h-44 rounded-2xl
+                w-full sm:w-52 h-36 sm:h-44 rounded-2xl
                 touch-btn text-white
                 disabled:cursor-not-allowed
                 transition-colors duration-100

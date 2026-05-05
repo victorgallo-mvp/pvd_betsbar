@@ -39,6 +39,7 @@ export interface CashReport {
 interface CashState {
   activeSession: CashSession | null
   isLoading: boolean
+  initialized: boolean
   error: string | null
   fetchActiveSession: () => Promise<void>
   openSession: (operatorId: string, openingFund: number) => Promise<void>
@@ -51,16 +52,17 @@ interface CashState {
 export const useCash = create<CashState>((set, get) => ({
   activeSession: null,
   isLoading: false,
+  initialized: false,
   error: null,
 
   fetchActiveSession: async () => {
     set({ isLoading: true, error: null })
     try {
       const session = await api.get<CashSession>('/cash/active')
-      set({ activeSession: session, isLoading: false })
+      set({ activeSession: session, isLoading: false, initialized: true })
     } catch {
       // 404 = no active session — that's normal
-      set({ activeSession: null, isLoading: false })
+      set({ activeSession: null, isLoading: false, initialized: true })
     }
   },
 

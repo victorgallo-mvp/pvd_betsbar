@@ -69,9 +69,27 @@ export default function Sangria() {
     <div className="h-full flex flex-col bg-slate-900">
       <Header onBack={() => navigate('/')} />
 
-      <div className="flex-1 flex min-h-0">
-        {/* Left — info + reason */}
-        <div className="w-[40%] flex flex-col p-5 gap-4 border-r border-slate-700">
+      {/* Mobile: keypad on top, reason + button below. Tablet: side-by-side */}
+      <div className="flex-1 flex flex-col sm:flex-row min-h-0">
+        {/* Keypad — full width on mobile, right column on tablet */}
+        <div className="flex flex-col p-4 gap-3 sm:flex-1 sm:order-2 sm:border-l sm:border-slate-700">
+          <div className="bg-slate-800 rounded-xl p-4 text-center border border-slate-700">
+            <div className="text-xs text-slate-500 mb-1">Valor da sangria</div>
+            <div className="text-4xl font-mono font-bold text-amber-400">
+              R$ {formatCents(cents)}
+            </div>
+          </div>
+
+          <CurrencyKeypad
+            cents={cents}
+            onChange={setCents}
+            disabled={isLoading}
+            className="flex-1 min-h-[16rem] sm:min-h-0"
+          />
+        </div>
+
+        {/* Info + reason + button — full width on mobile, left column on tablet */}
+        <div className="flex flex-col p-4 gap-4 sm:w-[40%] sm:order-1 sm:border-r sm:border-slate-700">
           {activeSession && (
             <div className="bg-slate-800 rounded-xl p-4 text-sm space-y-2 border border-slate-700">
               <div className="text-xs text-slate-500 uppercase tracking-wide">Caixa ativo</div>
@@ -100,7 +118,7 @@ export default function Sangria() {
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Ex: Troco para funcionário, pagamento fornecedor..."
-              rows={4}
+              rows={3}
               className="
                 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3
                 text-slate-100 placeholder-slate-600 text-sm resize-none
@@ -124,25 +142,8 @@ export default function Sangria() {
             "
           >
             <ArrowDownLeft size={20} />
-            {isLoading ? 'Registrando...' : `Confirmar Sangria`}
+            {isLoading ? 'Registrando...' : 'Confirmar Sangria'}
           </button>
-        </div>
-
-        {/* Right — keypad */}
-        <div className="flex-1 flex flex-col p-5 gap-4">
-          <div className="bg-slate-800 rounded-xl p-4 text-center border border-slate-700">
-            <div className="text-xs text-slate-500 mb-1">Valor da sangria</div>
-            <div className="text-4xl font-mono font-bold text-amber-400">
-              R$ {formatCents(cents)}
-            </div>
-          </div>
-
-          <CurrencyKeypad
-            cents={cents}
-            onChange={setCents}
-            disabled={isLoading}
-            className="flex-1"
-          />
         </div>
       </div>
     </div>

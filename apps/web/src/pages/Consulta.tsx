@@ -14,7 +14,7 @@ export default function Consulta() {
   useEffect(() => {
     Promise.all([
       fetch('/api/products').then((r) => r.json()),
-      fetch('/api/categories').then((r) => r.json()),
+      fetch('/api/products/categories').then((r) => r.json()),
     ]).then(([prods, cats]) => {
       setProducts(prods)
       setCategories(cats)

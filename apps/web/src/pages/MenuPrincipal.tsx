@@ -65,8 +65,8 @@ export default function MenuPrincipal() {
         <span className="text-slate-600 text-xs">PDV v0.1</span>
       </div>
 
-      {/* Grid 3x3 */}
-      <div className="flex-1 grid grid-cols-3 grid-rows-3 gap-2 p-3">
+      {/* Grid: 2 cols on mobile, 3 cols on tablet */}
+      <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-2 p-3">
         {menuItems.map((item) => {
           const Icon = item.icon
 

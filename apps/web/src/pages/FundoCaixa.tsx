@@ -8,7 +8,7 @@ import { CurrencyKeypad, formatCents } from '../components/CurrencyKeypad'
 export default function FundoCaixa() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { activeSession, isLoading, error, fetchActiveSession, openSession, clearError } = useCash()
+  const { activeSession, isLoading, initialized, error, fetchActiveSession, openSession, clearError } = useCash()
 
   const [cents, setCents] = useState(0)
   const [success, setSuccess] = useState(false)
@@ -34,8 +34,19 @@ export default function FundoCaixa() {
       timeStyle: 'short',
     })
 
+  if (!initialized) {
+    return (
+      <div className="h-full flex flex-col bg-slate-900">
+        <Header onBack={() => navigate('/')} />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-slate-500 animate-pulse">Carregando...</div>
+        </div>
+      </div>
+    )
+  }
+
   // Already has an open session
-  if (!isLoading && activeSession) {
+  if (activeSession) {
     return (
       <div className="h-full flex flex-col bg-slate-900">
         <Header onBack={() => navigate('/')} />
