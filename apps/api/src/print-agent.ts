@@ -11,23 +11,28 @@
  *   pnpm --filter api run agent
  *
  * Optional env vars:
- *   PRINTER_PORT        — default 9100
+ *   PRINTER_PORT        — default 9100 (ignorado se PRINTER_INTERFACE definido)
  *   PRINTER_WIDTH       — 58 or 80 (default 80)
- *   KITCHEN_PRINTER_IP  — if different from PRINTER_IP
+ *   PRINTER_INTERFACE   — sobrescreve interface diretamente, ex: "printer:POS-80" (USB no Windows)
+ *   KITCHEN_PRINTER_IP  — se diferente de PRINTER_IP
  *   KITCHEN_PRINTER_PORT— default 9100
+ *   KITCHEN_INTERFACE   — sobrescreve interface da cozinha
  *   POLL_MS             — polling interval in ms (default 5000)
  */
 
 // @ts-ignore
 import ThermalPrinter from 'node-thermal-printer'
 
-const API_URL    = (process.env.RAILWAY_API_URL ?? 'http://localhost:3000').replace(/\/$/, '')
-const PRINTER_IP   = process.env.PRINTER_IP ?? '192.168.1.100'
-const PRINTER_PORT = Number(process.env.PRINTER_PORT ?? 9100)
-const PRINTER_WIDTH = Number(process.env.PRINTER_WIDTH ?? 80) as 58 | 80
-const KITCHEN_IP   = process.env.KITCHEN_PRINTER_IP ?? PRINTER_IP
-const KITCHEN_PORT = Number(process.env.KITCHEN_PRINTER_PORT ?? 9100)
-const POLL_MS      = Number(process.env.POLL_MS ?? 5000)
+const API_URL          = (process.env.RAILWAY_API_URL ?? 'http://localhost:3000').replace(/\/$/, '')
+const PRINTER_IP       = process.env.PRINTER_IP ?? '192.168.1.100'
+const PRINTER_PORT     = Number(process.env.PRINTER_PORT ?? 9100)
+const PRINTER_WIDTH    = Number(process.env.PRINTER_WIDTH ?? 80) as 58 | 80
+const KITCHEN_IP       = process.env.KITCHEN_PRINTER_IP ?? PRINTER_IP
+const KITCHEN_PORT     = Number(process.env.KITCHEN_PRINTER_PORT ?? 9100)
+const POLL_MS          = Number(process.env.POLL_MS ?? 5000)
+// Quando definido, usa a string de interface diretamente em vez de TCP (ex: "printer:POS-80")
+const PRINTER_IFACE    = process.env.PRINTER_INTERFACE ?? null
+const KITCHEN_IFACE    = process.env.KITCHEN_INTERFACE ?? PRINTER_IFACE
 
 const CHAR_COLS = PRINTER_WIDTH === 58 ? 32 : 48
 
@@ -35,10 +40,10 @@ function fmt(n: number) { return `R$ ${n.toFixed(2).replace('.', ',')}` }
 
 // ─── Printer helpers ──────────────────────────────────────────
 
-function makePrinter(ip: string, port: number, cols: number) {
+function makePrinter(ip: string, port: number, cols: number, ifaceOverride?: string | null) {
   return new ThermalPrinter.ThermalPrinter({
     type: ThermalPrinter.types.EPSON,
-    interface: `tcp://${ip}:${port}`,
+    interface: ifaceOverride ?? `tcp://${ip}:${port}`,
     width: cols,
     characterSet: ThermalPrinter.CharacterSet.PC860_PORTUGUESE,
   })
@@ -67,10 +72,10 @@ const METHOD_LABELS: Record<string, string> = {
 }
 
 async function printReceipt(payload: PrintPayload): Promise<void> {
-  const printer = makePrinter(PRINTER_IP, PRINTER_PORT, CHAR_COLS)
+  const printer = makePrinter(PRINTER_IP, PRINTER_PORT, CHAR_COLS, PRINTER_IFACE)
 
   const isConnected = await printer.isPrinterConnected()
-  if (!isConnected) throw new Error(`Impressora offline: ${PRINTER_IP}:${PRINTER_PORT}`)
+  if (!isConnected) throw new Error(`Impressora offline: ${PRINTER_IFACE ?? `${PRINTER_IP}:${PRINTER_PORT}`}`)
 
   printer.alignCenter()
   printer.setTextDoubleHeight()
@@ -132,10 +137,10 @@ interface KitchenPayload {
 }
 
 async function printKitchen(payload: KitchenPayload): Promise<void> {
-  const printer = makePrinter(KITCHEN_IP, KITCHEN_PORT, 48)
+  const printer = makePrinter(KITCHEN_IP, KITCHEN_PORT, 48, KITCHEN_IFACE)
 
   const isConnected = await printer.isPrinterConnected()
-  if (!isConnected) throw new Error(`Impressora cozinha offline: ${KITCHEN_IP}:${KITCHEN_PORT}`)
+  if (!isConnected) throw new Error(`Impressora cozinha offline: ${KITCHEN_IFACE ?? `${KITCHEN_IP}:${KITCHEN_PORT}`}`)
 
   const label = payload.tableNumber
     ? `Mesa: ${payload.tableNumber}`
@@ -232,8 +237,8 @@ async function poll(): Promise<void> {
 // ─── Start ────────────────────────────────────────────────────
 
 console.log(`[agent] Iniciado — API: ${API_URL}`)
-console.log(`[agent] Impressora recibo: ${PRINTER_IP}:${PRINTER_PORT}`)
-console.log(`[agent] Impressora cozinha: ${KITCHEN_IP}:${KITCHEN_PORT}`)
+console.log(`[agent] Impressora recibo: ${PRINTER_IFACE ?? `${PRINTER_IP}:${PRINTER_PORT}`}`)
+console.log(`[agent] Impressora cozinha: ${KITCHEN_IFACE ?? `${KITCHEN_IP}:${KITCHEN_PORT}`}`)
 console.log(`[agent] Polling a cada ${POLL_MS}ms\n`)
 
 void poll()
