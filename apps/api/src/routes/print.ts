@@ -1,7 +1,20 @@
 import type { FastifyPluginAsync } from 'fastify'
+import { PrismaClient } from '@prisma/client'
 import { PrintService } from '../services/PrintService.js'
 
+const prisma = new PrismaClient()
+
 export const printRoutes: FastifyPluginAsync = async (app) => {
+  // GET /print/pending — list all pending print jobs (used by local print agent)
+  app.get('/pending', async (_request, reply) => {
+    const jobs = await prisma.printJob.findMany({
+      where: { status: 'pending' },
+      orderBy: { createdAt: 'asc' },
+      take: 20,
+    })
+    return reply.send(jobs)
+  })
+
   // POST /print/sale/:saleId — create a fiche job (only works if sale is paid)
   app.post('/sale/:saleId', async (request, reply) => {
     const { saleId } = request.params as { saleId: string }
