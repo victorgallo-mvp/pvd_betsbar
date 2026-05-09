@@ -24,7 +24,7 @@
 import ThermalPrinter from 'node-thermal-printer'
 
 const API_URL          = (process.env.RAILWAY_API_URL ?? 'http://localhost:3000').replace(/\/$/, '')
-const PRINTER_IP       = process.env.PRINTER_IP ?? '192.168.1.100'
+const PRINTER_IP       = process.env.PRINTER_IP ?? '192.168.2.15'
 const PRINTER_PORT     = Number(process.env.PRINTER_PORT ?? 9100)
 const PRINTER_WIDTH    = Number(process.env.PRINTER_WIDTH ?? 80) as 58 | 80
 const KITCHEN_IP       = process.env.KITCHEN_PRINTER_IP ?? PRINTER_IP
