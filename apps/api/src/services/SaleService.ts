@@ -1,5 +1,6 @@
 import { PrismaClient, type Prisma } from '@prisma/client'
 import { broadcast } from '../ws/broadcast.js'
+import { PrintService } from './PrintService.js'
 
 const prisma = new PrismaClient()
 
@@ -228,6 +229,11 @@ export const SaleService = {
       })
       broadcast({ event: 'table_update', table: tableToDTO(table) })
     }
+
+    // Auto-print bill receipt (fire-and-forget — print failure must not block the flow)
+    PrintService.createBillJob(saleId).catch((err) =>
+      console.error('[Print] createBillJob falhou:', err),
+    )
 
     return SaleService.getSale(saleId)
   },

@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Trash2, CreditCard, Minus, ShoppingCart, List } from 'lucide-react'
+import { ArrowLeft, Trash2, CreditCard, Minus, ShoppingCart, List, CheckCheck } from 'lucide-react'
 import { useSale } from '../stores/useSale'
 import { useDevice } from '../hooks/useDevice'
 import type { CategoryDTO, ProductDTO } from '@pdv/shared'
@@ -28,7 +28,7 @@ function fmtBRL(n: number) {
 export default function BalcaoComanda() {
   const { saleId: paramSaleId } = useParams<{ saleId?: string }>()
   const navigate = useNavigate()
-  const { saleOperator, currentSale, loadSale, openSale, addItem, removeItem, clearSale } =
+  const { saleOperator, currentSale, loadSale, openSale, addItem, removeItem, concludeItems, clearSale } =
     useSale()
   const { isPOS } = useDevice()
 
@@ -36,7 +36,9 @@ export default function BalcaoComanda() {
   const [products, setProducts] = useState<ProductDTO[]>([])
   const [selectedCat, setSelectedCat] = useState<string | null>(null)
   const [addingItem, setAddingItem] = useState<string | null>(null)
+  const [concluding, setConcluding] = useState(false)
   const [posTab, setPosTab] = useState<'products' | 'pedido'>('products')
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'warning' } | null>(null)
   const creatingRef = useRef(false)
 
   const isDelivery = !!paramSaleId
@@ -102,8 +104,25 @@ export default function BalcaoComanda() {
     navigate(`/pagamento/${currentSale.id}`)
   }
 
-  const handleLimpar = () => {
-    clearSale()
+  const handleLimpar = () => { clearSale() }
+
+  const showToast = (msg: string, type: 'success' | 'warning') => {
+    setToast({ msg, type })
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  const handleConcluir = async () => {
+    if (!saleId || concluding) return
+    setConcluding(true)
+    const { printed, queued } = await concludeItems(saleId)
+    setConcluding(false)
+    if (queued > 0) {
+      showToast('Impressora offline — pedido na fila', 'warning')
+    } else if (printed > 0) {
+      showToast('Pedido enviado pra cozinha ✓', 'success')
+    } else {
+      showToast('Nenhum item novo para enviar', 'warning')
+    }
   }
 
   const activeItems = currentSale?.items.filter((i) => !i.cancelled) ?? []
@@ -162,18 +181,34 @@ export default function BalcaoComanda() {
     </div>
   )
 
+  const pendingCount = activeItems.filter((i) => !i.sentToProduction).length
+
   const ActionButtons = () => (
-    <div className="grid grid-cols-2 gap-2 p-2 bg-slate-800 border-t border-slate-700 shrink-0">
+    <div className="grid grid-cols-3 gap-1 p-2 bg-slate-800 border-t border-slate-700 shrink-0">
       <button onClick={handleLimpar} disabled={activeItems.length === 0}
-        className="flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-300 touch-btn disabled:opacity-40 disabled:cursor-not-allowed font-medium text-sm">
-        <Trash2 size={16} />Limpar
+        className="flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-300 touch-btn disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium">
+        <Trash2 size={18} /><span>Limpar</span>
+      </button>
+      <button onClick={handleConcluir} disabled={pendingCount === 0 || concluding}
+        className="flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white touch-btn disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold relative">
+        <CheckCheck size={18} /><span>Cozinha</span>
+        {pendingCount > 0 && (
+          <span className="absolute top-1 right-1 bg-amber-500 text-black text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">{pendingCount}</span>
+        )}
       </button>
       <button onClick={handlePagar} disabled={activeItems.length === 0}
-        className="flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white touch-btn disabled:opacity-40 disabled:cursor-not-allowed font-bold text-base">
-        <CreditCard size={18} />Pagar
+        className="flex flex-col items-center justify-center gap-0.5 py-2 rounded-xl bg-blue-700 hover:bg-blue-600 text-white touch-btn disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold">
+        <CreditCard size={18} /><span>Pagar</span>
       </button>
     </div>
   )
+
+  const Toast = () => toast ? (
+    <div className={`fixed bottom-20 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl shadow-2xl text-sm font-semibold text-white max-w-xs text-center pointer-events-none
+      ${toast.type === 'success' ? 'bg-emerald-600' : 'bg-amber-600'}`}>
+      {toast.msg}
+    </div>
+  ) : null
 
   const ProductPanel = () => (
     <div className="flex-1 flex flex-col min-h-0">
@@ -203,6 +238,7 @@ export default function BalcaoComanda() {
   if (isPOS) {
     return (
       <div className="h-full flex flex-col bg-slate-900">
+        <Toast />
         {topBar}
         <div className="flex-1 min-h-0 flex flex-col">
           {posTab === 'products' ? (
@@ -237,6 +273,7 @@ export default function BalcaoComanda() {
   // ── Tablet landscape layout ───────────────────────────────
   return (
     <div className="h-full flex flex-col bg-slate-900">
+      <Toast />
       {topBar}
       <div className="flex-1 flex min-h-0">
         <div className="w-[42%] flex flex-col border-r border-slate-700 min-h-0">

@@ -63,12 +63,9 @@ export default function Pagamento() {
     if (!saleId || cents <= 0) return
     const result = await registerPayment(saleId, method, amountToApply / 100)
     if (result.status === 'paid') {
-      if (result.type === 'table') {
-        setDone(true)
-        setTimeout(() => navigate('/mesa'), 1500)
-      } else {
-        navigate(`/print-confirm/${saleId}`, { state: { trocoCents } })
-      }
+      setDone(true)
+      const nextPath = result.type === 'table' ? '/mesa' : result.type === 'delivery' ? '/venda' : '/balcao'
+      setTimeout(() => navigate(nextPath), 1500)
     } else {
       // partial — reload, decrement split, recalc
       await loadSale(saleId)

@@ -5,6 +5,8 @@ import { readConfig } from '../appConfig.js'
 
 const prisma = new PrismaClient()
 
+const AGENT_MODE = process.env.AGENT_MODE === 'true'
+
 const METHOD_LABELS: Record<string, string> = {
   cash: 'Dinheiro', debit: 'Cartao Debito', credit: 'Cartao Credito',
   pix: 'Pix', voucher: 'Voucher', conta_receita: 'Conta Receita',
@@ -15,6 +17,8 @@ function fmt(n: number) { return `R$ ${n.toFixed(2).replace('.', ',')}` }
 // Build an ESC/POS receipt using node-thermal-printer and send it to the
 // configured network printer. Falls through to 'html' gracefully if not set.
 async function sendThermal(payload: PrintPayload): Promise<void> {
+  // In AGENT_MODE the local print agent handles all printing via DB jobs
+  if (AGENT_MODE) return
   const cfg = readConfig()
   if (cfg.printer.type !== 'network') return
 
@@ -160,6 +164,58 @@ export const PrintService = {
     })
 
     return { ...job, thermalError }
+  },
+
+  // Creates a bill job when "pedir conta" is called — prints before payment.
+  // Used for tables: flow is request-bill → print → payment (not after payment).
+  async createBillJob(saleId: string) {
+    const sale = await prisma.sale.findUniqueOrThrow({
+      where: { id: saleId },
+      include: {
+        items: { include: { product: true }, where: { cancelled: false } },
+        payments: true,
+        operator: true,
+        table: true,
+      },
+    })
+
+    const payload: PrintPayload = {
+      saleId: sale.id,
+      saleType: sale.type,
+      date: new Date().toISOString(),
+      operatorName: sale.operator.name,
+      tableNumber: sale.table?.number ?? null,
+      customerName: sale.customerName ?? null,
+      customerAddress: sale.customerAddress ?? null,
+      items: sale.items.map((i) => ({
+        name: i.product.name,
+        qty: i.qty,
+        unitPrice: Number(i.unitPrice),
+        subtotal: Number(i.unitPrice) * i.qty,
+      })),
+      subtotal: Number(sale.subtotal),
+      discount: Number(sale.discount),
+      total: Number(sale.total),
+      payments: [],
+      troco: 0,
+    }
+
+    if (!AGENT_MODE) {
+      const cfg = readConfig()
+      if (cfg.printer.type === 'network') {
+        try { await sendThermal(payload) } catch { /* agent will retry */ }
+      }
+    }
+
+    return prisma.printJob.create({
+      data: {
+        saleId,
+        type: 'receipt',
+        status: 'pending',
+        triggerEvent: 'bill_requested',
+        payload: JSON.stringify(payload),
+      },
+    })
   },
 
   async markJob(jobId: string, action: 'printed' | 'skipped') {

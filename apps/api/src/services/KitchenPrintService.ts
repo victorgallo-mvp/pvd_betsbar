@@ -6,6 +6,7 @@ import { readConfig } from '../appConfig.js'
 const prisma = new PrismaClient()
 
 const MOCK = process.env.MOCK_PRINTER === 'true'
+const AGENT_MODE = process.env.AGENT_MODE === 'true'
 
 interface KitchenItem {
   qty: number
@@ -139,24 +140,27 @@ export const KitchenPrintService = {
       data: { sentToProduction: true },
     })
 
-    try {
-      await sendToKitchenPrinter(payload)
-      return { printed: sale.items.length, queued: 0 }
-    } catch (err) {
-      console.error('[KitchenPrint] Falha ao imprimir, adicionando à fila:', (err as Error).message)
-
-      await prisma.printJob.create({
-        data: {
-          saleId,
-          type: 'kitchen',
-          status: 'pending',
-          triggerEvent: 'item_added',
-          payload: JSON.stringify(payload),
-        },
-      })
-
-      return { printed: 0, queued: sale.items.length }
+    // In AGENT_MODE the local print agent handles all printing — skip TCP attempt
+    if (!AGENT_MODE) {
+      try {
+        await sendToKitchenPrinter(payload)
+        return { printed: sale.items.length, queued: 0 }
+      } catch (err) {
+        console.error('[KitchenPrint] Falha ao imprimir, adicionando à fila:', (err as Error).message)
+      }
     }
+
+    await prisma.printJob.create({
+      data: {
+        saleId,
+        type: 'kitchen',
+        status: 'pending',
+        triggerEvent: 'item_added',
+        payload: JSON.stringify(payload),
+      },
+    })
+
+    return { printed: 0, queued: sale.items.length }
   },
 
   async retryFailedJobs(): Promise<void> {
