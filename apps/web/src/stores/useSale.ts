@@ -27,6 +27,7 @@ interface SaleState {
   removeItem: (saleId: string, itemId: string) => Promise<void>
   concludeItems: (saleId: string) => Promise<{ printed: number; queued: number }>
   requestBill: (saleId: string, peopleCount: number) => Promise<void>
+  cancelSale: (saleId: string) => Promise<void>
   registerPayment: (
     saleId: string,
     method: string,
@@ -108,6 +109,15 @@ export const useSale = create<SaleState>((set) => ({
     try {
       const sale = await api.post<SaleDTO>(`/sales/${saleId}/request-bill`, { peopleCount })
       set({ currentSale: sale })
+    } catch (err) {
+      set({ error: (err as Error).message })
+    }
+  },
+
+  cancelSale: async (saleId) => {
+    try {
+      await api.delete(`/sales/${saleId}`)
+      set({ currentSale: null })
     } catch (err) {
       set({ error: (err as Error).message })
     }

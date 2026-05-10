@@ -66,6 +66,17 @@ export const salesRoutes: FastifyPluginAsync = async (app) => {
     return SaleService.requestBill(id, parsed.data)
   })
 
+  // DELETE /sales/:id — cancel sale + free table
+  app.delete('/:id', async (request, reply) => {
+    const { id } = request.params as { id: string }
+    try {
+      await SaleService.cancelSale(id)
+      return reply.status(204).send()
+    } catch (err) {
+      return reply.status(400).send({ error: (err as Error).message })
+    }
+  })
+
   // POST /sales/:id/payments — registrar pagamento
   app.post('/:id/payments', async (request, reply) => {
     const { id } = request.params as { id: string }

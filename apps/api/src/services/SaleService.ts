@@ -270,6 +270,24 @@ export const SaleService = {
     return SaleService.getSale(saleId)
   },
 
+  // Cancel sale — mark cancelled + free the table
+  async cancelSale(saleId: string) {
+    const sale = await prisma.sale.findUniqueOrThrow({ where: { id: saleId } })
+
+    await prisma.sale.update({
+      where: { id: saleId },
+      data: { status: 'cancelled', closedAt: new Date() },
+    })
+
+    if (sale.tableId) {
+      const table = await prisma.table.update({
+        where: { id: sale.tableId },
+        data: { status: 'free', openedAt: null, peopleCount: null },
+      })
+      broadcast({ event: 'table_update', table: tableToDTO(table) })
+    }
+  },
+
   // Recalc totals and return updated sale
   async recalcAndGet(saleId: string) {
     const items = await prisma.saleItem.findMany({

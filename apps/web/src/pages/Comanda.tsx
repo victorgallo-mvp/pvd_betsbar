@@ -1,81 +1,36 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  ArrowLeft, Check, Receipt, XCircle, CreditCard,
-  Plus, Minus, ArrowRightLeft, CheckCheck, ShoppingCart, List,
+  ArrowLeft, Check, Receipt, CreditCard,
+  Plus, Minus, ArrowRightLeft, CheckCheck, ShoppingCart, List, DoorOpen,
 } from 'lucide-react'
 import { useSale } from '../stores/useSale'
 import { useDevice } from '../hooks/useDevice'
 import type { CategoryDTO, ProductDTO } from '@pdv/shared'
 import { api } from '../lib/api'
 
-// Dialog for requesting the bill with people count
-function ContaDialog({
-  total,
-  onConfirm,
-  onClose,
-}: {
-  total: number
-  onConfirm: (n: number) => void
-  onClose: () => void
-}) {
-  const [count, setCount] = useState(1)
-  const perPerson = total / count
 
+function fmtBRL(n: number) {
+  return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+function FecharMesaDialog({ onConfirm, onClose }: { onConfirm: () => void; onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <div className="bg-slate-800 rounded-2xl p-6 w-80 shadow-2xl border border-slate-700">
-        <h2 className="text-lg font-bold text-slate-100 mb-4">Pedir Conta</h2>
-        <p className="text-slate-400 text-sm mb-4">
-          Total: <span className="text-emerald-400 font-bold">{fmtBRL(total)}</span>
-        </p>
-
-        <div className="flex items-center justify-center gap-4 mb-4">
-          <button
-            onClick={() => setCount((n) => Math.max(1, n - 1))}
-            className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center touch-btn"
-          >
-            <Minus size={18} />
+      <div className="bg-slate-800 rounded-2xl p-6 w-72 shadow-2xl border border-slate-700">
+        <h2 className="text-lg font-bold text-slate-100 mb-2">Fechar Mesa</h2>
+        <p className="text-slate-400 text-sm mb-5">Cancelar venda e liberar a mesa?</p>
+        <div className="flex gap-3">
+          <button onClick={onClose} className="flex-1 py-2 rounded-xl bg-slate-700 text-slate-300 touch-btn">
+            Voltar
           </button>
-          <div className="text-center">
-            <div className="text-4xl font-bold text-slate-100">{count}</div>
-            <div className="text-xs text-slate-500">pessoa{count > 1 ? 's' : ''}</div>
-          </div>
-          <button
-            onClick={() => setCount((n) => Math.min(20, n + 1))}
-            className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center touch-btn"
-          >
-            <Plus size={18} />
-          </button>
-        </div>
-
-        {count > 1 && (
-          <p className="text-center text-slate-300 text-sm mb-4">
-            {fmtBRL(perPerson)} por pessoa
-          </p>
-        )}
-
-        <div className="flex gap-3 mt-2">
-          <button
-            onClick={onClose}
-            className="flex-1 py-2 rounded-xl bg-slate-700 text-slate-300 touch-btn"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={() => onConfirm(count)}
-            className="flex-1 py-2 rounded-xl bg-emerald-600 text-white font-bold touch-btn"
-          >
-            OK
+          <button onClick={onConfirm} className="flex-1 py-2 rounded-xl bg-rose-700 text-white font-bold touch-btn">
+            Fechar
           </button>
         </div>
       </div>
     </div>
   )
-}
-
-function fmtBRL(n: number) {
-  return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
 // Category color mapping (matches seed)
@@ -93,14 +48,14 @@ const CATEGORY_COLORS: Record<string, string> = {
 export default function Comanda() {
   const { saleId } = useParams<{ saleId: string }>()
   const navigate = useNavigate()
-  const { saleOperator, currentSale, loadSale, addItem, removeItem, concludeItems, requestBill } =
+  const { saleOperator, currentSale, loadSale, addItem, removeItem, concludeItems, requestBill, cancelSale } =
     useSale()
   const { isPOS } = useDevice()
 
   const [categories, setCategories] = useState<CategoryDTO[]>([])
   const [products, setProducts] = useState<ProductDTO[]>([])
   const [selectedCat, setSelectedCat] = useState<string | null>(null)
-  const [showConta, setShowConta] = useState(false)
+  const [showFecharConfirm, setShowFecharConfirm] = useState(false)
   const [addingItem, setAddingItem] = useState<string | null>(null)
   const [posTab, setPosTab] = useState<'products' | 'pedido'>('products')
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'warning' } | null>(null)
@@ -147,10 +102,15 @@ export default function Comanda() {
     }
   }
 
-  const handleContaConfirm = async (peopleCount: number) => {
+  const handleConta = async () => {
     if (!saleId) return
-    setShowConta(false)
-    await requestBill(saleId, peopleCount)
+    await requestBill(saleId, 1)
+    navigate('/mesa')
+  }
+
+  const handleFecharMesa = async () => {
+    if (!saleId) return
+    await cancelSale(saleId)
     navigate('/mesa')
   }
 
@@ -231,18 +191,19 @@ export default function Comanda() {
   const ActionBar = ({ tablet }: { tablet?: boolean }) => (
     <div className={`${tablet ? 'grid grid-cols-6' : 'grid grid-cols-3'} gap-1 p-2 bg-slate-800 border-t border-slate-700 shrink-0`}>
       {[
-        { icon: Receipt,        label: 'Conta',    action: () => setShowConta(true), active: sale?.status !== 'awaiting_payment' },
-        { icon: XCircle,        label: 'Canc.',    action: () => {},                 active: false },
-        { icon: CreditCard,     label: 'Pagar',    action: handlePagar,              active: true },
-        { icon: Plus,           label: 'Qtde',     action: () => {},                 active: false },
-        { icon: ArrowRightLeft, label: 'Transf.',  action: () => {},                 active: false },
-        { icon: CheckCheck,     label: 'Concluir', action: handleConcluir,           active: pendingCount > 0 },
+        { icon: Receipt,        label: 'Conta',    action: handleConta,                    active: sale?.status !== 'awaiting_payment' },
+        { icon: DoorOpen,       label: 'Fechar',   action: () => setShowFecharConfirm(true), active: true },
+        { icon: CreditCard,     label: 'Pagar',    action: handlePagar,                    active: true },
+        { icon: Plus,           label: 'Qtde',     action: () => {},                       active: false },
+        { icon: ArrowRightLeft, label: 'Transf.',  action: () => {},                       active: false },
+        { icon: CheckCheck,     label: 'Concluir', action: handleConcluir,                 active: pendingCount > 0 },
       ].map(({ icon: Icon, label, action, active }) => (
         <button key={label} onClick={action} disabled={!active}
           className={`flex flex-col items-center justify-center gap-0.5 py-2 rounded-lg text-[10px] touch-btn
             ${active
               ? label === 'Concluir' ? 'bg-emerald-700 hover:bg-emerald-600 text-white'
               : label === 'Pagar' ? 'bg-blue-700 hover:bg-blue-600 text-white'
+              : label === 'Fechar' ? 'bg-rose-800 hover:bg-rose-700 text-white'
               : 'bg-slate-700 hover:bg-slate-600 text-slate-200'
               : 'bg-slate-800 text-slate-600 cursor-not-allowed'}`}>
           <Icon size={18} />
@@ -326,7 +287,7 @@ export default function Comanda() {
             )}
           </button>
         </div>
-        {showConta && sale && <ContaDialog total={sale.total} onConfirm={handleContaConfirm} onClose={() => setShowConta(false)} />}
+        {showFecharConfirm && <FecharMesaDialog onConfirm={handleFecharMesa} onClose={() => setShowFecharConfirm(false)} />}
       </div>
     )
   }
@@ -344,7 +305,7 @@ export default function Comanda() {
         </div>
         <ProductPanel />
       </div>
-      {showConta && sale && <ContaDialog total={sale.total} onConfirm={handleContaConfirm} onClose={() => setShowConta(false)} />}
+      {showFecharConfirm && <FecharMesaDialog onConfirm={handleFecharMesa} onClose={() => setShowFecharConfirm(false)} />}
     </div>
   )
 }
