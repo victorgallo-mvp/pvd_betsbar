@@ -2,19 +2,19 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowDownLeft, CheckCircle, AlertCircle } from 'lucide-react'
 import { useCash } from '../stores/useCash'
+import { useDevice } from '../hooks/useDevice'
 import { CurrencyKeypad, formatCents } from '../components/CurrencyKeypad'
 
 export default function Sangria() {
   const navigate = useNavigate()
   const { activeSession, isLoading, error, fetchActiveSession, withdraw } = useCash()
+  const { isPOS } = useDevice()
 
   const [cents, setCents] = useState(0)
   const [reason, setReason] = useState('')
   const [success, setSuccess] = useState(false)
 
-  useEffect(() => {
-    fetchActiveSession()
-  }, [fetchActiveSession])
+  useEffect(() => { fetchActiveSession() }, [fetchActiveSession])
 
   const handleConfirm = async () => {
     if (cents <= 0 || !reason.trim()) return
@@ -26,6 +26,8 @@ export default function Sangria() {
       // error shown via store
     }
   }
+
+  const canConfirm = !isLoading && cents > 0 && reason.trim().length > 0
 
   if (success) {
     return (
@@ -41,7 +43,6 @@ export default function Sangria() {
     )
   }
 
-  // No active session
   if (!isLoading && !activeSession) {
     return (
       <div className="h-full flex flex-col bg-slate-900">
@@ -65,33 +66,27 @@ export default function Sangria() {
     )
   }
 
-  return (
-    <div className="h-full flex flex-col bg-slate-900">
-      <Header onBack={() => navigate('/')} />
+  // ── POS portrait layout ───────────────────────────────────
+  if (isPOS) {
+    return (
+      <div className="h-full flex flex-col bg-slate-900">
+        <Header onBack={() => navigate('/')} />
 
-      {/* Mobile: keypad on top, reason + button below. Tablet: side-by-side */}
-      <div className="flex-1 flex flex-col sm:flex-row min-h-0">
-        {/* Keypad — full width on mobile, right column on tablet */}
-        <div className="flex flex-col p-4 gap-3 sm:flex-1 sm:order-2 sm:border-l sm:border-slate-700">
-          <div className="bg-slate-800 rounded-xl p-4 text-center border border-slate-700">
+        <div className="flex-1 overflow-y-auto flex flex-col gap-3 p-3">
+          {/* Valor */}
+          <div className="bg-slate-800 rounded-xl p-3 text-center border border-slate-700 shrink-0">
             <div className="text-xs text-slate-500 mb-1">Valor da sangria</div>
             <div className="text-4xl font-mono font-bold text-amber-400">
               R$ {formatCents(cents)}
             </div>
           </div>
 
-          <CurrencyKeypad
-            cents={cents}
-            onChange={setCents}
-            disabled={isLoading}
-            className="flex-1 min-h-[16rem] sm:min-h-0"
-          />
-        </div>
+          {/* Keypad */}
+          <CurrencyKeypad cents={cents} onChange={setCents} disabled={isLoading} className="h-56 shrink-0" />
 
-        {/* Info + reason + button — full width on mobile, left column on tablet */}
-        <div className="flex flex-col p-4 gap-4 sm:w-[40%] sm:order-1 sm:border-r sm:border-slate-700">
+          {/* Caixa info */}
           {activeSession && (
-            <div className="bg-slate-800 rounded-xl p-4 text-sm space-y-2 border border-slate-700">
+            <div className="bg-slate-800 rounded-xl p-3 text-sm space-y-2 border border-slate-700 shrink-0">
               <div className="text-xs text-slate-500 uppercase tracking-wide">Caixa ativo</div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Operador</span>
@@ -103,28 +98,75 @@ export default function Sangria() {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Sangrias</span>
-                <span className="text-amber-400 font-semibold">
-                  {activeSession.withdrawals.length}×
-                </span>
+                <span className="text-amber-400 font-semibold">{activeSession.withdrawals.length}×</span>
               </div>
             </div>
           )}
 
-          <div className="flex flex-col gap-2">
-            <label className="text-xs text-slate-400 font-semibold uppercase tracking-wide">
-              Motivo *
-            </label>
+          {/* Motivo */}
+          <div className="flex flex-col gap-2 shrink-0">
+            <label className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Motivo *</label>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Ex: Troco para funcionário, pagamento fornecedor..."
               rows={3}
-              className="
-                bg-slate-800 border border-slate-700 rounded-xl px-4 py-3
-                text-slate-100 placeholder-slate-600 text-sm resize-none
-                focus:outline-none focus:border-amber-500
-                user-select-text
-              "
+              className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 placeholder-slate-600 text-sm resize-none focus:outline-none focus:border-amber-500 user-select-text"
+            />
+          </div>
+
+          {error && <p className="text-rose-400 text-sm shrink-0">{error}</p>}
+        </div>
+
+        {/* Botão fixo na base */}
+        <div className="shrink-0 p-3 bg-slate-800 border-t border-slate-700">
+          <button
+            onClick={handleConfirm}
+            disabled={!canConfirm}
+            className="w-full py-4 rounded-xl bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white font-bold text-base touch-btn disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            <ArrowDownLeft size={20} />
+            {isLoading ? 'Registrando...' : 'Confirmar Sangria'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Tablet landscape layout ───────────────────────────────
+  return (
+    <div className="h-full flex flex-col bg-slate-900">
+      <Header onBack={() => navigate('/')} />
+
+      <div className="flex-1 flex min-h-0">
+        {/* LEFT — info + motivo + botão */}
+        <div className="w-[40%] flex flex-col p-4 gap-4 border-r border-slate-700 min-h-0 overflow-y-auto">
+          {activeSession && (
+            <div className="bg-slate-800 rounded-xl p-4 text-sm space-y-2 border border-slate-700 shrink-0">
+              <div className="text-xs text-slate-500 uppercase tracking-wide">Caixa ativo</div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Operador</span>
+                <span className="text-slate-300">{activeSession.operatorName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Fundo</span>
+                <span className="text-slate-300">{fmtBRL(activeSession.openingFund)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Sangrias</span>
+                <span className="text-amber-400 font-semibold">{activeSession.withdrawals.length}×</span>
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-2">
+            <label className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Motivo *</label>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Ex: Troco para funcionário, pagamento fornecedor..."
+              rows={4}
+              className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 placeholder-slate-600 text-sm resize-none focus:outline-none focus:border-amber-500 user-select-text"
             />
           </div>
 
@@ -132,18 +174,23 @@ export default function Sangria() {
 
           <button
             onClick={handleConfirm}
-            disabled={isLoading || cents <= 0 || !reason.trim()}
-            className="
-              mt-auto py-4 rounded-xl
-              bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white
-              font-bold text-base touch-btn
-              disabled:opacity-40 disabled:cursor-not-allowed
-              flex items-center justify-center gap-2
-            "
+            disabled={!canConfirm}
+            className="mt-auto py-4 rounded-xl bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white font-bold text-base touch-btn disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <ArrowDownLeft size={20} />
             {isLoading ? 'Registrando...' : 'Confirmar Sangria'}
           </button>
+        </div>
+
+        {/* RIGHT — valor + keypad */}
+        <div className="flex-1 flex flex-col p-4 gap-3 min-h-0">
+          <div className="bg-slate-800 rounded-xl p-4 text-center border border-slate-700 shrink-0">
+            <div className="text-xs text-slate-500 mb-1">Valor da sangria</div>
+            <div className="text-4xl font-mono font-bold text-amber-400">
+              R$ {formatCents(cents)}
+            </div>
+          </div>
+          <CurrencyKeypad cents={cents} onChange={setCents} disabled={isLoading} className="flex-1 min-h-0" />
         </div>
       </div>
     </div>
