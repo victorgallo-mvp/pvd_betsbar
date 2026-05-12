@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, ShoppingBag, Bike, LogOut, User } from 'lucide-react'
+import { ArrowLeft, ShoppingBag, Bike, LogOut, User, Plus } from 'lucide-react'
 import { useTables } from '../stores/useTables'
 import { useSale } from '../stores/useSale'
 import { api } from '../lib/api'
@@ -21,6 +21,11 @@ export default function MesaSelector() {
   const [pendingTable, setPendingTable] = useState<TableDTO | null>(null)
   const [nameInput, setNameInput] = useState('')
   const nameRef = useRef<HTMLInputElement>(null)
+
+  const [addingTable, setAddingTable] = useState(false)
+  const [addTableNum, setAddTableNum] = useState('')
+  const [addTableError, setAddTableError] = useState('')
+  const addTableRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { if (!saleOperator) navigate('/venda') }, [saleOperator, navigate])
   useEffect(() => { fetchTables() }, [fetchTables])
@@ -71,6 +76,76 @@ export default function MesaSelector() {
     setInputNum('')
     handleSelectMesa(num)
   }
+
+  const handleAddTable = async () => {
+    const num = parseInt(addTableNum)
+    if (!num || num < 1 || num > 99) { setAddTableError('Número inválido (1–99)'); return }
+    if (tables.some((t) => t.number === num)) { setAddTableError(`Mesa ${num} já existe`); return }
+    setAddTableError('')
+    try {
+      await api.post('/admin/tables', { number: num })
+      await fetchTables()
+      setAddingTable(false)
+      setAddTableNum('')
+    } catch {
+      setAddTableError('Erro ao criar mesa')
+    }
+  }
+
+  const addTableModal = addingTable ? (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-xs p-5 flex flex-col gap-4 shadow-2xl">
+        <div className="text-slate-100 font-semibold text-lg">Nova Mesa</div>
+
+        <div>
+          <label className="text-xs text-slate-400 uppercase tracking-wide mb-1.5 block">Número da mesa</label>
+          <input
+            ref={addTableRef}
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={2}
+            value={addTableNum}
+            onChange={(e) => { setAddTableNum(e.target.value.replace(/\D/g, '').slice(0, 2)); setAddTableError('') }}
+            onKeyDown={(e) => e.key === 'Enter' && handleAddTable()}
+            placeholder="Ex: 12"
+            className="w-full bg-slate-700 border border-slate-600 focus:border-emerald-500 rounded-xl px-4 py-3 text-slate-100 text-2xl font-mono font-bold placeholder-slate-600 outline-none text-center"
+          />
+          {addTableError && <p className="text-rose-400 text-xs mt-1.5">{addTableError}</p>}
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            onClick={() => { setAddingTable(false); setAddTableNum(''); setAddTableError('') }}
+            className="flex-1 py-3 rounded-xl border-2 border-slate-600 text-slate-400 text-sm font-medium touch-btn hover:border-slate-500"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleAddTable}
+            disabled={!addTableNum}
+            className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold touch-btn disabled:opacity-40"
+          >
+            Adicionar
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null
+
+  const addCard = (compact: boolean) => (
+    <button
+      onClick={() => { setAddingTable(true); setAddTableNum(''); setAddTableError(''); setTimeout(() => addTableRef.current?.focus(), 50) }}
+      className={`
+        border-2 border-dashed border-slate-600 rounded-xl flex flex-col items-center justify-center
+        touch-btn aspect-square text-slate-500 hover:border-emerald-600 hover:text-emerald-400
+        transition-colors duration-150
+        ${compact ? 'p-1.5 min-w-[60px]' : 'p-3 min-w-[80px]'}
+      `}
+    >
+      <Plus size={compact ? 20 : 28} />
+    </button>
+  )
 
   const topBar = (
     <div className="flex items-center gap-3 px-4 py-2 bg-slate-800 border-b border-slate-700 shrink-0">
@@ -150,13 +225,12 @@ export default function MesaSelector() {
     <>
       {isLoading ? (
         <div className="text-slate-500 text-sm animate-pulse">Carregando mesas...</div>
-      ) : source.length === 0 ? (
-        <div className="text-slate-600 text-sm text-center py-4">Nenhuma mesa</div>
       ) : (
         <div className={`grid ${cols} gap-2`}>
           {source.map((t) => (
             <MesaCard key={t.id} table={t} onClick={() => handleSelectMesa(t.number)} />
           ))}
+          {addCard(false)}
         </div>
       )}
       {busyMsg && <div className="text-amber-400 text-sm font-medium mt-2">{busyMsg}</div>}
@@ -168,6 +242,7 @@ export default function MesaSelector() {
     return (
       <div className="h-full flex flex-col bg-slate-900">
         {nameModal}
+        {addTableModal}
         {topBar}
 
         {/* Compact number input row */}
@@ -203,6 +278,7 @@ export default function MesaSelector() {
               {tables.map((t) => (
                 <MesaCard key={t.id} table={t} onClick={() => handleSelectMesa(t.number)} compact />
               ))}
+              {addCard(true)}
             </div>
           )}
           {busyMsg && <div className="text-amber-400 text-sm font-medium mt-2 text-center">{busyMsg}</div>}
@@ -217,6 +293,7 @@ export default function MesaSelector() {
   return (
     <div className="h-full flex flex-col bg-slate-900">
       {nameModal}
+      {addTableModal}
       {topBar}
 
       <div className="flex-1 flex min-h-0">

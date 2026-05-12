@@ -39,11 +39,17 @@ export function MesaCard({ table, onClick, compact = false }: Props) {
         ${compact ? 'p-1.5 min-w-[60px]' : 'p-3 min-w-[80px]'}
       `}
     >
-      <span className={`font-bold leading-none ${compact ? 'text-xl' : 'text-3xl'}`}>{table.number}</span>
-      {isActive && firstName && (
-        <span className={`mt-0.5 font-medium truncate w-full text-center ${compact ? 'text-[9px]' : 'text-[11px]'}`}>
-          {firstName}
-        </span>
+      {isActive && firstName ? (
+        <>
+          <span className={`opacity-60 leading-none ${compact ? 'text-[8px]' : 'text-[10px]'}`}>
+            {compact ? `#${table.number}` : `Mesa ${table.number}`}
+          </span>
+          <span className={`font-bold leading-tight truncate w-full text-center ${compact ? 'text-sm' : 'text-xl'}`}>
+            {firstName}
+          </span>
+        </>
+      ) : (
+        <span className={`font-bold leading-none ${compact ? 'text-xl' : 'text-3xl'}`}>{table.number}</span>
       )}
       {isActive && table.openedAt && (
         <span className={`opacity-70 ${compact ? 'text-[8px]' : 'text-[10px]'}`}>{formatElapsed(table.openedAt)}</span>
