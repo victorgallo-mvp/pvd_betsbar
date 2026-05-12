@@ -19,6 +19,7 @@ export const AdminService = {
     name: string
     price: number
     isFavorite: boolean
+    sendToKitchen: boolean
   }) {
     const row = await prisma.product.create({ data })
     return { ...row, price: Number(row.price) }
@@ -26,7 +27,7 @@ export const AdminService = {
 
   async updateProduct(
     id: string,
-    data: Partial<{ categoryId: string; name: string; price: number; isFavorite: boolean; active: boolean }>,
+    data: Partial<{ categoryId: string; name: string; price: number; isFavorite: boolean; sendToKitchen: boolean; active: boolean }>,
   ) {
     const row = await prisma.product.update({ where: { id }, data })
     return { ...row, price: Number(row.price) }

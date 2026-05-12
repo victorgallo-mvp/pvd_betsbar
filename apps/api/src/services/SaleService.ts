@@ -115,7 +115,7 @@ export const SaleService = {
 
     const rows = await prisma.product.findMany({
       where,
-      select: { id: true, categoryId: true, name: true, price: true, isFavorite: true, active: true },
+      select: { id: true, categoryId: true, name: true, price: true, isFavorite: true, sendToKitchen: true, active: true },
       orderBy: { name: 'asc' },
     })
     return rows.map((p) => ({ ...p, price: Number(p.price) }))

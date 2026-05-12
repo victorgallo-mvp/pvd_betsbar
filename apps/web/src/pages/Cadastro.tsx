@@ -9,7 +9,7 @@ import { api } from '../lib/api'
 // ─── Types ───────────────────────────────────────────────────
 
 interface Category { id: string; name: string; color: string; icon: string; displayOrder: number; active: boolean }
-interface Product { id: string; categoryId: string; name: string; price: number; isFavorite: boolean; active: boolean; category: { id: string; name: string; color: string } }
+interface Product { id: string; categoryId: string; name: string; price: number; isFavorite: boolean; sendToKitchen: boolean; active: boolean; category: { id: string; name: string; color: string } }
 interface TableRow { id: string; number: number; status: string }
 interface UserRow { id: string; name: string; role: string; active: boolean }
 
@@ -77,15 +77,15 @@ function ProdutosTab({ categories }: { categories: Category[] }) {
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState<Product | null>(null)
   const [adding, setAdding] = useState(false)
-  const [form, setForm] = useState({ categoryId: '', name: '', price: '', isFavorite: false })
+  const [form, setForm] = useState({ categoryId: '', name: '', price: '', isFavorite: false, sendToKitchen: true })
 
   const load = () => api.get<Product[]>('/admin/products').then(setItems)
   useEffect(() => { load() }, [])
 
   const filtered = items.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
 
-  const openAdd = () => { setForm({ categoryId: categories[0]?.id ?? '', name: '', price: '', isFavorite: false }); setAdding(true) }
-  const openEdit = (p: Product) => { setForm({ categoryId: p.categoryId, name: p.name, price: String(p.price), isFavorite: p.isFavorite }); setEditing(p) }
+  const openAdd = () => { setForm({ categoryId: categories[0]?.id ?? '', name: '', price: '', isFavorite: false, sendToKitchen: true }); setAdding(true) }
+  const openEdit = (p: Product) => { setForm({ categoryId: p.categoryId, name: p.name, price: String(p.price), isFavorite: p.isFavorite, sendToKitchen: p.sendToKitchen }); setEditing(p) }
 
   const save = async () => {
     const data = { ...form, price: Number(form.price) }
@@ -106,10 +106,16 @@ function ProdutosTab({ categories }: { categories: Category[] }) {
       </Field>
       <Field label="Nome"><TextInput value={form.name} onChange={v => setForm(f => ({ ...f, name: v }))} placeholder="Nome do produto" /></Field>
       <Field label="Preço (R$)"><TextInput value={form.price} onChange={v => setForm(f => ({ ...f, price: v }))} placeholder="0.00" type="number" /></Field>
-      <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-        <input type="checkbox" checked={form.isFavorite} onChange={e => setForm(f => ({ ...f, isFavorite: e.target.checked }))} className="accent-amber-400" />
-        Favorito (aparece na aba Favoritos)
-      </label>
+      <div className="flex flex-col gap-2">
+        <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+          <input type="checkbox" checked={form.isFavorite} onChange={e => setForm(f => ({ ...f, isFavorite: e.target.checked }))} className="accent-amber-400" />
+          Favorito (aparece na aba Favoritos)
+        </label>
+        <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+          <input type="checkbox" checked={form.sendToKitchen} onChange={e => setForm(f => ({ ...f, sendToKitchen: e.target.checked }))} className="accent-emerald-500" />
+          Enviar para cozinha ao concluir pedido
+        </label>
+      </div>
       <SaveBtn onClick={save} disabled={!form.name || !form.price || !form.categoryId} />
     </>
   )

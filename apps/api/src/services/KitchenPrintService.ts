@@ -118,7 +118,11 @@ export const KitchenPrintService = {
       },
     })
 
-    if (!sale || sale.items.length === 0) return { printed: 0, queued: 0 }
+    if (!sale) return { printed: 0, queued: 0 }
+
+    // Only send items whose product is flagged for kitchen printing
+    const kitchenItems = sale.items.filter((i) => i.product.sendToKitchen)
+    if (kitchenItems.length === 0) return { printed: 0, queued: 0 }
 
     const payload: KitchenPayload = {
       saleId: sale.id,
@@ -126,14 +130,14 @@ export const KitchenPrintService = {
       saleType: sale.type,
       operatorName: sale.operator.name,
       printedAt: new Date().toISOString(),
-      items: sale.items.map((i) => ({
+      items: kitchenItems.map((i) => ({
         qty: i.qty,
         name: i.product.name,
         notes: i.notes,
       })),
     }
 
-    // Mark items as sent to production before attempting print.
+    // Mark ALL pending items as sent to production (including non-kitchen ones).
     // This ensures the flow is never blocked by a printer failure.
     await prisma.saleItem.updateMany({
       where: { saleId, sentToProduction: false, cancelled: false },
@@ -144,7 +148,7 @@ export const KitchenPrintService = {
     if (!AGENT_MODE) {
       try {
         await sendToKitchenPrinter(payload)
-        return { printed: sale.items.length, queued: 0 }
+        return { printed: kitchenItems.length, queued: 0 }
       } catch (err) {
         console.error('[KitchenPrint] Falha ao imprimir, adicionando à fila:', (err as Error).message)
       }
@@ -160,7 +164,7 @@ export const KitchenPrintService = {
       },
     })
 
-    return { printed: 0, queued: sale.items.length }
+    return { printed: 0, queued: kitchenItems.length }
   },
 
   async testPrint(): Promise<{ ok: boolean; message: string }> {

@@ -29,14 +29,15 @@ model Category {
 }
 
 model Product {
-  id         String     @id @default(cuid())
-  categoryId String
-  category   Category   @relation(fields: [categoryId], references: [id])
-  name       String
-  price      Decimal
-  isFavorite Boolean    @default(false)
-  active     Boolean    @default(true)
-  saleItems  SaleItem[]
+  id              String     @id @default(cuid())
+  categoryId      String
+  category        Category   @relation(fields: [categoryId], references: [id])
+  name            String
+  price           Decimal
+  isFavorite      Boolean    @default(false)
+  sendToKitchen   Boolean    @default(true)
+  active          Boolean    @default(true)
+  saleItems       SaleItem[]
 }
 
 model Table {

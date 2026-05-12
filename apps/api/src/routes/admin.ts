@@ -6,11 +6,15 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
   app.get('/products', async () => AdminService.listProducts())
 
   app.post('/products', async (request, reply) => {
-    const body = request.body as { categoryId: string; name: string; price: number; isFavorite?: boolean }
+    const body = request.body as { categoryId: string; name: string; price: number; isFavorite?: boolean; sendToKitchen?: boolean }
     if (!body.categoryId || !body.name || body.price == null)
       return reply.status(400).send({ error: 'categoryId, name e price são obrigatórios' })
     return reply.status(201).send(
-      await AdminService.createProduct({ ...body, isFavorite: body.isFavorite ?? false }),
+      await AdminService.createProduct({
+        ...body,
+        isFavorite: body.isFavorite ?? false,
+        sendToKitchen: body.sendToKitchen ?? true,
+      }),
     )
   })
 
