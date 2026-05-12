@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, ShoppingBag, Bike, LogOut } from 'lucide-react'
+import { ArrowLeft, ShoppingBag, Bike, LogOut, User } from 'lucide-react'
 import { useTables } from '../stores/useTables'
 import { useSale } from '../stores/useSale'
 import { api } from '../lib/api'
-import type { SaleDTO } from '@pdv/shared'
+import type { SaleDTO, TableDTO } from '@pdv/shared'
 import { useWebSocket } from '../hooks/useWebSocket'
 import { useDevice } from '../hooks/useDevice'
 import { MesaCard } from '../components/MesaCard'
@@ -18,6 +18,9 @@ export default function MesaSelector() {
 
   const [inputNum, setInputNum] = useState('')
   const [busyMsg, setBusyMsg] = useState('')
+  const [pendingTable, setPendingTable] = useState<TableDTO | null>(null)
+  const [nameInput, setNameInput] = useState('')
+  const nameRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { if (!saleOperator) navigate('/venda') }, [saleOperator, navigate])
   useEffect(() => { fetchTables() }, [fetchTables])
@@ -38,10 +41,23 @@ export default function MesaSelector() {
       return
     }
 
-    if (!saleOperator) return
+    // Free table → show name modal
+    setNameInput('')
+    setPendingTable(table)
+    setTimeout(() => nameRef.current?.focus(), 50)
+  }
+
+  const handleConfirmOpen = async () => {
+    if (!pendingTable || !saleOperator) return
+    setPendingTable(null)
     setBusyMsg('Abrindo mesa...')
     try {
-      const sale = await openSale({ type: 'table', tableId: table.id, operatorId: saleOperator.id })
+      const sale = await openSale({
+        type: 'table',
+        tableId: pendingTable.id,
+        operatorId: saleOperator.id,
+        customerName: nameInput.trim() || undefined,
+      })
       navigate(`/comanda/${sale.id}`)
     } catch {
       setBusyMsg('Erro ao abrir mesa')
@@ -84,6 +100,50 @@ export default function MesaSelector() {
     </div>
   )
 
+  const nameModal = pendingTable ? (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-sm p-5 flex flex-col gap-4 shadow-2xl">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-emerald-700 flex items-center justify-center shrink-0">
+            <span className="text-white font-bold text-lg">{pendingTable.number}</span>
+          </div>
+          <div>
+            <div className="text-slate-100 font-semibold">Abrir Mesa {pendingTable.number}</div>
+            <div className="text-slate-400 text-xs">Informe o nome do cliente (opcional)</div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 bg-slate-700 rounded-xl px-3 py-2.5 border border-slate-600 focus-within:border-emerald-500">
+          <User size={16} className="text-slate-400 shrink-0" />
+          <input
+            ref={nameRef}
+            type="text"
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleConfirmOpen()}
+            placeholder="Ex: João, Família Silva..."
+            className="flex-1 bg-transparent text-slate-100 placeholder-slate-500 text-sm outline-none"
+          />
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            onClick={() => setPendingTable(null)}
+            className="flex-1 py-3 rounded-xl border-2 border-slate-600 text-slate-400 text-sm font-medium touch-btn hover:border-slate-500"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleConfirmOpen}
+            className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold touch-btn"
+          >
+            Abrir Mesa
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null
+
   const activeTables = tables.filter((t) => t.status !== 'free')
 
   const mesaGrid = (cols: string, source: typeof tables) => (
@@ -107,6 +167,7 @@ export default function MesaSelector() {
   if (isPOS) {
     return (
       <div className="h-full flex flex-col bg-slate-900">
+        {nameModal}
         {topBar}
 
         {/* Compact number input row */}
@@ -155,6 +216,7 @@ export default function MesaSelector() {
   // ── Tablet landscape layout ───────────────────────────────
   return (
     <div className="h-full flex flex-col bg-slate-900">
+      {nameModal}
       {topBar}
 
       <div className="flex-1 flex min-h-0">

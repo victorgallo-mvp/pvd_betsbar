@@ -24,15 +24,17 @@
 import ThermalPrinter from 'node-thermal-printer'
 
 const API_URL          = (process.env.RAILWAY_API_URL ?? 'http://localhost:3000').replace(/\/$/, '')
-const PRINTER_IP       = process.env.PRINTER_IP ?? '192.168.2.15'
-const PRINTER_PORT     = Number(process.env.PRINTER_PORT ?? 9100)
 const PRINTER_WIDTH    = Number(process.env.PRINTER_WIDTH ?? 80) as 58 | 80
-const KITCHEN_IP       = process.env.KITCHEN_PRINTER_IP ?? PRINTER_IP
-const KITCHEN_PORT     = Number(process.env.KITCHEN_PRINTER_PORT ?? 9100)
 const POLL_MS          = Number(process.env.POLL_MS ?? 5000)
 // Quando definido, usa a string de interface diretamente em vez de TCP (ex: "printer:POS-80")
 const PRINTER_IFACE    = process.env.PRINTER_INTERFACE ?? null
-const KITCHEN_IFACE    = process.env.KITCHEN_INTERFACE ?? PRINTER_IFACE
+const KITCHEN_IFACE    = process.env.KITCHEN_INTERFACE ?? null
+
+// IPs podem vir de env vars (prioridade) ou da config da API (carregada no init)
+let PRINTER_IP    = process.env.PRINTER_IP ?? ''
+let PRINTER_PORT  = Number(process.env.PRINTER_PORT ?? 9100)
+let KITCHEN_IP    = process.env.KITCHEN_PRINTER_IP ?? ''
+let KITCHEN_PORT  = Number(process.env.KITCHEN_PRINTER_PORT ?? 9100)
 
 const CHAR_COLS = PRINTER_WIDTH === 58 ? 32 : 48
 
@@ -236,10 +238,40 @@ async function poll(): Promise<void> {
 
 // ─── Start ────────────────────────────────────────────────────
 
-console.log(`[agent] Iniciado — API: ${API_URL}`)
-console.log(`[agent] Impressora recibo: ${PRINTER_IFACE ?? `${PRINTER_IP}:${PRINTER_PORT}`}`)
-console.log(`[agent] Impressora cozinha: ${KITCHEN_IFACE ?? `${KITCHEN_IP}:${KITCHEN_PORT}`}`)
-console.log(`[agent] Polling a cada ${POLL_MS}ms\n`)
+async function loadRemoteConfig() {
+  if (process.env.PRINTER_IP && process.env.KITCHEN_PRINTER_IP) return
+  try {
+    const res = await fetch(`${API_URL}/config`)
+    if (!res.ok) return
+    const cfg = await res.json() as {
+      printer: { ip: string; port: number }
+      kitchenPrinter: { ip: string; port: number }
+    }
+    if (!process.env.PRINTER_IP && cfg.printer?.ip) {
+      PRINTER_IP = cfg.printer.ip
+      if (!process.env.PRINTER_PORT) PRINTER_PORT = cfg.printer.port || 9100
+    }
+    if (!process.env.KITCHEN_PRINTER_IP && cfg.kitchenPrinter?.ip) {
+      KITCHEN_IP = cfg.kitchenPrinter.ip
+      if (!process.env.KITCHEN_PRINTER_PORT) KITCHEN_PORT = cfg.kitchenPrinter.port || 9100
+    }
+    console.log('[agent] Config carregada da API')
+  } catch (err) {
+    console.warn('[agent] Config remota indisponível, usando env vars:', (err as Error).message)
+  }
+  if (!KITCHEN_IP) KITCHEN_IP = PRINTER_IP
+}
 
-void poll()
-setInterval(() => void poll(), POLL_MS)
+async function start() {
+  await loadRemoteConfig()
+
+  console.log(`[agent] Iniciado — API: ${API_URL}`)
+  console.log(`[agent] Impressora balcão:  ${PRINTER_IFACE ?? `${PRINTER_IP}:${PRINTER_PORT}`}`)
+  console.log(`[agent] Impressora cozinha: ${KITCHEN_IFACE ?? `${KITCHEN_IP}:${KITCHEN_PORT}`}`)
+  console.log(`[agent] Polling a cada ${POLL_MS}ms\n`)
+
+  void poll()
+  setInterval(() => void poll(), POLL_MS)
+}
+
+void start()

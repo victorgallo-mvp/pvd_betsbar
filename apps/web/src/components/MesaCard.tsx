@@ -26,6 +26,7 @@ const STATUS_STYLES = {
 export function MesaCard({ table, onClick, compact = false }: Props) {
   const style = STATUS_STYLES[table.status as keyof typeof STATUS_STYLES] ?? STATUS_STYLES.free
   const isActive = table.status !== 'free'
+  const firstName = table.customerName?.split(' ')[0] ?? null
 
   return (
     <button
@@ -39,11 +40,16 @@ export function MesaCard({ table, onClick, compact = false }: Props) {
       `}
     >
       <span className={`font-bold leading-none ${compact ? 'text-xl' : 'text-3xl'}`}>{table.number}</span>
+      {isActive && firstName && (
+        <span className={`mt-0.5 font-medium truncate w-full text-center ${compact ? 'text-[9px]' : 'text-[11px]'}`}>
+          {firstName}
+        </span>
+      )}
       {isActive && table.openedAt && (
-        <span className={`mt-1 opacity-80 ${compact ? 'text-[9px]' : 'text-xs'}`}>{formatElapsed(table.openedAt)}</span>
+        <span className={`opacity-70 ${compact ? 'text-[8px]' : 'text-[10px]'}`}>{formatElapsed(table.openedAt)}</span>
       )}
       {table.status === 'awaiting_payment' && (
-        <span className={`mt-0.5 font-semibold opacity-90 ${compact ? 'text-[8px]' : 'text-[10px]'}`}>conta</span>
+        <span className={`font-semibold opacity-90 ${compact ? 'text-[8px]' : 'text-[10px]'}`}>conta</span>
       )}
     </button>
   )

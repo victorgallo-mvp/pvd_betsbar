@@ -22,16 +22,18 @@ export interface AppConfig {
     enabled: boolean
     ip: string
     port: number
+    width: 58 | 80
   }
 }
 
 const DEFAULTS: AppConfig = {
   establishment: { name: 'Bar & Restaurante', address: '', cnpj: '', phone: '' },
-  printer: { type: 'html', ip: '192.168.1.100', port: 9100, width: 80, characterSet: 'PC860_PORTUGUESE' },
+  printer: { type: 'html', ip: '192.168.2.15', port: 9100, width: 80, characterSet: 'PC860_PORTUGUESE' },
   kitchenPrinter: {
     enabled: false,
     ip: process.env.KITCHEN_PRINTER_IP ?? '192.168.1.50',
     port: 9100,
+    width: 80,
   },
 }
 

@@ -19,13 +19,14 @@ type SaleRow = Prisma.SaleGetPayload<{
 
 // --- DTO mappers ---
 
-function tableToDTO(t: TableRow) {
+function tableToDTO(t: TableRow, customerName: string | null = null) {
   return {
     id: t.id,
     number: t.number,
     status: t.status,
     openedAt: t.openedAt?.toISOString() ?? null,
     peopleCount: t.peopleCount,
+    customerName,
   }
 }
 
@@ -80,8 +81,18 @@ const saleInclude = {
 export const SaleService = {
   // Tables
   async getTables() {
-    const rows = await prisma.table.findMany({ orderBy: { number: 'asc' } })
-    return rows.map(tableToDTO)
+    const rows = await prisma.table.findMany({
+      orderBy: { number: 'asc' },
+      include: {
+        sales: {
+          where: { status: { in: ['open', 'awaiting_payment'] } },
+          select: { customerName: true },
+          orderBy: { openedAt: 'desc' as const },
+          take: 1,
+        },
+      },
+    })
+    return rows.map((t) => tableToDTO(t, t.sales[0]?.customerName ?? null))
   },
 
   // Categories
@@ -135,7 +146,7 @@ export const SaleService = {
         where: { id: input.tableId },
         data: { status: 'open', openedAt: new Date() },
       })
-      broadcast({ event: 'table_update', table: tableToDTO(table) })
+      broadcast({ event: 'table_update', table: tableToDTO(table, input.customerName ?? null) })
     }
 
     return saleToDTO(sale)

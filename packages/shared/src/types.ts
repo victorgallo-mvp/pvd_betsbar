@@ -86,6 +86,7 @@ export interface TableDTO {
   status: TableStatus
   openedAt: string | null
   peopleCount: number | null
+  customerName: string | null
 }
 
 export interface SaleItemDTO {

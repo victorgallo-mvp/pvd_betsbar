@@ -6,7 +6,7 @@ import { api } from '../lib/api'
 interface AppConfig {
   establishment: { name: string; address: string; cnpj: string; phone: string }
   printer: { type: 'html' | 'network' | 'usb'; ip: string; port: number; width: 58 | 80; characterSet: string }
-  kitchenPrinter: { enabled: boolean; ip: string; port: number }
+  kitchenPrinter: { enabled: boolean; ip: string; port: number; width: 58 | 80 }
 }
 
 function Section({ title, icon: Icon, children }: { title: string; icon: React.ElementType; children: React.ReactNode }) {
@@ -39,6 +39,21 @@ function Input({ value, onChange, placeholder, type = 'text' }: {
   )
 }
 
+function WidthToggle({ value, onChange }: { value: 58 | 80; onChange: (v: 58 | 80) => void }) {
+  return (
+    <div className="flex gap-2">
+      {([58, 80] as const).map(w => (
+        <button key={w} onClick={() => onChange(w)}
+          className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-medium touch-btn ${
+            value === w ? 'border-emerald-500 bg-emerald-900/30 text-emerald-300' : 'border-slate-600 text-slate-500'
+          }`}>
+          {w}mm
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export default function Configurar() {
   const navigate = useNavigate()
   const [config, setConfig] = useState<AppConfig | null>(null)
@@ -46,6 +61,8 @@ export default function Configurar() {
   const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [testStatus, setTestStatus] = useState<'idle' | 'loading' | 'ok' | 'err'>('idle')
   const [testMsg, setTestMsg] = useState('')
+  const [testKitchenStatus, setTestKitchenStatus] = useState<'idle' | 'loading' | 'ok' | 'err'>('idle')
+  const [testKitchenMsg, setTestKitchenMsg] = useState('')
 
   useEffect(() => {
     api.get<AppConfig>('/config').then(setConfig)
@@ -83,6 +100,20 @@ export default function Configurar() {
       setTestMsg((err as Error).message)
     }
     setTimeout(() => setTestStatus('idle'), 4000)
+  }
+
+  const handleTestKitchenPrint = async () => {
+    setTestKitchenStatus('loading')
+    setTestKitchenMsg('')
+    try {
+      const res = await api.post<{ ok: boolean; message: string }>('/config/test-kitchen-print', {})
+      setTestKitchenStatus('ok')
+      setTestKitchenMsg(res.message)
+    } catch (err) {
+      setTestKitchenStatus('err')
+      setTestKitchenMsg((err as Error).message)
+    }
+    setTimeout(() => setTestKitchenStatus('idle'), 4000)
   }
 
   if (!config) {
@@ -125,8 +156,8 @@ export default function Configurar() {
           </div>
         </Section>
 
-        {/* Impressora */}
-        <Section title="Impressora" icon={Printer}>
+        {/* Impressora Balcão */}
+        <Section title="Impressora Balcão (Recibos)" icon={Printer}>
           <Field label="Tipo de conexão">
             <div className="flex gap-2">
               {(['html', 'network', 'usb'] as const).map(t => (
@@ -136,7 +167,7 @@ export default function Configurar() {
                       ? 'border-emerald-500 bg-emerald-900/30 text-emerald-300'
                       : 'border-slate-600 text-slate-500 hover:border-slate-500'
                   }`}>
-                  {t === 'html' ? 'HTML (navegador)' : t === 'network' ? 'Rede (TCP/IP)' : 'USB'}
+                  {t === 'html' ? 'HTML' : t === 'network' ? 'Rede (TCP)' : 'USB'}
                 </button>
               ))}
             </div>
@@ -144,45 +175,37 @@ export default function Configurar() {
 
           {prt.type === 'html' && (
             <div className="bg-slate-900 rounded-xl p-3 text-xs text-slate-400 border border-slate-700">
-              No modo HTML, o cupom é aberto como uma nova aba do navegador e impresso via <code>window.print()</code>.
-              Funciona em qualquer dispositivo sem configuração adicional.
+              O cupom é aberto como nova aba e impresso via <code>window.print()</code>. Funciona em qualquer dispositivo sem configuração.
             </div>
           )}
 
           {prt.type === 'network' && (
-            <>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-2">
-                  <Field label="IP da impressora">
-                    <Input value={prt.ip} onChange={v => update('printer', 'ip', v)} placeholder="192.168.1.100" />
-                  </Field>
-                </div>
-                <Field label="Porta">
-                  <Input value={String(prt.port)} onChange={v => update('printer', 'port', Number(v))} type="number" placeholder="9100" />
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-2">
+                <Field label="IP da impressora">
+                  <Input value={prt.ip} onChange={v => update('printer', 'ip', v)} placeholder="192.168.1.100" />
                 </Field>
               </div>
-              <div className="bg-slate-900 rounded-xl p-3 text-xs text-slate-400 border border-slate-700">
-                Protocolo ESC/POS via socket TCP. A impressora deve estar na mesma rede local que o servidor.
-              </div>
-            </>
+              <Field label="Porta">
+                <Input value={String(prt.port)} onChange={v => update('printer', 'port', Number(v))} type="number" placeholder="9100" />
+              </Field>
+            </div>
+          )}
+
+          {prt.type === 'usb' && (
+            <div className="bg-slate-900 rounded-xl p-3 text-xs text-slate-400 border border-slate-700">
+              A impressão USB é feita pelo agente local. Configure o nome da impressora Windows no <code>.env</code> do agente:<br />
+              <code className="text-emerald-400">PRINTER_INTERFACE=printer:POS-80</code>
+            </div>
           )}
 
           <div className="grid grid-cols-2 gap-4">
             <Field label="Largura do papel">
-              <div className="flex gap-2">
-                {([58, 80] as const).map(w => (
-                  <button key={w} onClick={() => update('printer', 'width', w)}
-                    className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-medium touch-btn ${
-                      prt.width === w ? 'border-emerald-500 bg-emerald-900/30 text-emerald-300' : 'border-slate-600 text-slate-500'
-                    }`}>
-                    {w}mm
-                  </button>
-                ))}
-              </div>
+              <WidthToggle value={prt.width} onChange={v => update('printer', 'width', v)} />
             </Field>
             <Field label="Teste de impressão">
               <button onClick={handleTestPrint} disabled={testStatus === 'loading'}
-                className={`py-2.5 rounded-xl border-2 text-sm font-medium touch-btn transition-all flex items-center justify-center gap-2 ${
+                className={`w-full py-2.5 rounded-xl border-2 text-sm font-medium touch-btn transition-all flex items-center justify-center gap-2 ${
                   testStatus === 'ok' ? 'border-emerald-500 bg-emerald-900/30 text-emerald-300'
                   : testStatus === 'err' ? 'border-rose-500 bg-rose-900/30 text-rose-300'
                   : 'border-slate-600 text-slate-400 hover:border-slate-500'
@@ -201,7 +224,7 @@ export default function Configurar() {
         </Section>
 
         {/* Impressora Cozinha */}
-        <Section title="Impressora Cozinha" icon={Printer}>
+        <Section title="Impressora Cozinha (Comandas)" icon={Printer}>
           <Field label="Habilitar impressão automática na cozinha">
             <button
               onClick={() => update('kitchenPrinter', 'enabled', !kp.enabled)}
@@ -215,25 +238,45 @@ export default function Configurar() {
             </button>
           </Field>
 
-          {kp.enabled && (
-            <>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-2">
-                  <Field label="IP da impressora (cozinha)">
-                    <Input value={kp.ip} onChange={v => update('kitchenPrinter', 'ip', v)} placeholder="192.168.1.50" />
-                  </Field>
-                </div>
-                <Field label="Porta">
-                  <Input value={String(kp.port)} onChange={v => update('kitchenPrinter', 'port', Number(v))} type="number" placeholder="9100" />
-                </Field>
-              </div>
-              <div className="bg-slate-900 rounded-xl p-3 text-xs text-slate-400 border border-slate-700">
-                Quando o garçom toca em <strong className="text-slate-300">Concluir</strong>, os itens são enviados
-                automaticamente para esta impressora via ESC/POS (TCP/IP). Se a impressora estiver offline,
-                o pedido fica na fila e é reimpresso em até 30s quando voltar.
-              </div>
-            </>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2">
+              <Field label="IP da impressora (cozinha)">
+                <Input value={kp.ip} onChange={v => update('kitchenPrinter', 'ip', v)} placeholder="192.168.1.50" />
+              </Field>
+            </div>
+            <Field label="Porta">
+              <Input value={String(kp.port)} onChange={v => update('kitchenPrinter', 'port', Number(v))} type="number" placeholder="9100" />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Largura do papel">
+              <WidthToggle value={kp.width ?? 80} onChange={v => update('kitchenPrinter', 'width', v)} />
+            </Field>
+            <Field label="Teste de impressão">
+              <button onClick={handleTestKitchenPrint} disabled={testKitchenStatus === 'loading' || !kp.enabled}
+                className={`w-full py-2.5 rounded-xl border-2 text-sm font-medium touch-btn transition-all flex items-center justify-center gap-2 ${
+                  testKitchenStatus === 'ok' ? 'border-emerald-500 bg-emerald-900/30 text-emerald-300'
+                  : testKitchenStatus === 'err' ? 'border-rose-500 bg-rose-900/30 text-rose-300'
+                  : !kp.enabled ? 'border-slate-700 text-slate-600 cursor-not-allowed'
+                  : 'border-slate-600 text-slate-400 hover:border-slate-500'
+                }`}>
+                {testKitchenStatus === 'loading' ? <Loader size={16} className="animate-spin" />
+                  : testKitchenStatus === 'ok' ? <CheckCircle size={16} />
+                  : testKitchenStatus === 'err' ? <AlertCircle size={16} />
+                  : <Printer size={16} />}
+                Testar
+              </button>
+            </Field>
+          </div>
+          {testKitchenMsg && (
+            <p className={`text-xs ${testKitchenStatus === 'ok' ? 'text-emerald-400' : 'text-rose-400'}`}>{testKitchenMsg}</p>
           )}
+
+          <div className="bg-slate-900 rounded-xl p-3 text-xs text-slate-400 border border-slate-700">
+            Quando o garçom toca em <strong className="text-slate-300">Concluir / Cozinha</strong>, os itens são enviados
+            para esta impressora via ESC/POS (TCP/IP). Se offline, fica na fila e imprime quando voltar.
+          </div>
         </Section>
       </div>
 

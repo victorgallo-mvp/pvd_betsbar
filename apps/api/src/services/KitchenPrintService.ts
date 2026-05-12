@@ -163,6 +163,23 @@ export const KitchenPrintService = {
     return { printed: 0, queued: sale.items.length }
   },
 
+  async testPrint(): Promise<{ ok: boolean; message: string }> {
+    const cfg = readConfig()
+    if (!cfg.kitchenPrinter.enabled || !cfg.kitchenPrinter.ip) {
+      return { ok: false, message: 'Impressora de cozinha não habilitada.' }
+    }
+    const testPayload: KitchenPayload = {
+      saleId: 'test',
+      tableNumber: null,
+      saleType: 'counter',
+      operatorName: 'Teste',
+      printedAt: new Date().toISOString(),
+      items: [{ qty: 1, name: 'ITEM TESTE', notes: null }],
+    }
+    await sendToKitchenPrinter(testPayload)
+    return { ok: true, message: 'Página de teste enviada para impressora da cozinha.' }
+  },
+
   async retryFailedJobs(): Promise<void> {
     const pending = await prisma.printJob.findMany({
       where: { type: 'kitchen', status: 'pending' },
