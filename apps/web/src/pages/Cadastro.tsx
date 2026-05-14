@@ -145,8 +145,8 @@ function ProdutosTab({ categories }: { categories: Category[] }) {
           </div>
         ))}
       </div>
-      {adding && <Modal title="Novo Produto" onClose={() => setAdding(false)}><FormContent /></Modal>}
-      {editing && <Modal title="Editar Produto" onClose={() => setEditing(null)}><FormContent /></Modal>}
+      {adding && <Modal title="Novo Produto" onClose={() => setAdding(false)}>{FormContent()}</Modal>}
+      {editing && <Modal title="Editar Produto" onClose={() => setEditing(null)}>{FormContent()}</Modal>}
     </div>
   )
 }
@@ -220,8 +220,8 @@ function CategoriasTab() {
           </div>
         ))}
       </div>
-      {adding && <Modal title="Nova Categoria" onClose={() => setAdding(false)}><FormContent /></Modal>}
-      {editing && <Modal title="Editar Categoria" onClose={() => setEditing(null)}><FormContent /></Modal>}
+      {adding && <Modal title="Nova Categoria" onClose={() => setAdding(false)}>{FormContent()}</Modal>}
+      {editing && <Modal title="Editar Categoria" onClose={() => setEditing(null)}>{FormContent()}</Modal>}
     </div>
   )
 }
@@ -378,8 +378,8 @@ function UsuariosTab() {
           </div>
         ))}
       </div>
-      {adding && <Modal title="Novo Usuário" onClose={() => setAdding(false)}><FormContent isEdit={false} /></Modal>}
-      {editing && <Modal title="Editar Usuário" onClose={() => setEditing(null)}><FormContent isEdit={true} /></Modal>}
+      {adding && <Modal title="Novo Usuário" onClose={() => setAdding(false)}>{FormContent({ isEdit: false })}</Modal>}
+      {editing && <Modal title="Editar Usuário" onClose={() => setEditing(null)}>{FormContent({ isEdit: true })}</Modal>}
     </div>
   )
 }
