@@ -24,13 +24,7 @@ const CATEGORIES = [
   { id: 'cat_suco',       name: 'Sucos',                 color: '#10B981', icon: 'Apple',           displayOrder: 9 },
   { id: 'cat_agua',       name: 'Água',                  color: '#3B82F6', icon: 'Coffee',          displayOrder: 10 },
   // Comidas
-  { id: 'cat_chapa',      name: 'Chapas',                color: '#EF4444', icon: 'Beef',            displayOrder: 11 },
-  { id: 'cat_frango',     name: 'Frango',                color: '#F59E0B', icon: 'UtensilsCrossed', displayOrder: 12 },
-  { id: 'cat_peixe',      name: 'Peixe',                 color: '#06B6D4', icon: 'Fish',            displayOrder: 13 },
-  { id: 'cat_fritas',     name: 'Fritas',                color: '#F97316', icon: 'Flame',           displayOrder: 14 },
-  { id: 'cat_bolinho',    name: 'Bolinhos',              color: '#84CC16', icon: 'Sandwich',        displayOrder: 15 },
-  { id: 'cat_petisco',    name: 'Petiscos',              color: '#10B981', icon: 'Salad',           displayOrder: 16 },
-  { id: 'cat_combo',      name: 'Combos',                color: '#EF4444', icon: 'Star',            displayOrder: 17 },
+  { id: 'cat_comida',     name: 'Comidas',               color: '#EF4444', icon: 'UtensilsCrossed', displayOrder: 11 },
 ]
 
 // ─── Produtos ─────────────────────────────────────────────────
@@ -84,29 +78,17 @@ const PRODUCTS: {
   { categoryId: 'cat_agua',      name: 'Água com Gás',           price: 5,   isFavorite: false, sendToKitchen: false },
   { categoryId: 'cat_agua',      name: 'H2O Limoneto',           price: 7,   isFavorite: false, sendToKitchen: false },
 
-  // Chapas
-  { categoryId: 'cat_chapa',     name: 'All-In de Contra Filé',  price: 60,  isFavorite: false, sendToKitchen: true },
-  { categoryId: 'cat_chapa',     name: 'Double Bet Suíno',       price: 50,  isFavorite: false, sendToKitchen: true },
-
-  // Frango
-  { categoryId: 'cat_frango',    name: 'Lucky Wings',            price: 45,  isFavorite: false, sendToKitchen: true },
-
-  // Peixe
-  { categoryId: 'cat_peixe',     name: 'Carta da Mesa',          price: 45,  isFavorite: false, sendToKitchen: true },
-
-  // Fritas
-  { categoryId: 'cat_fritas',    name: 'Fritas Clássicas',       price: 20,  isFavorite: false, sendToKitchen: true },
-  { categoryId: 'cat_fritas',    name: 'Fritas Premiadas',       price: 30,  isFavorite: false, sendToKitchen: true },
-
-  // Bolinhos
-  { categoryId: 'cat_bolinho',   name: 'Bolinho de Linguiça',    price: 50,  isFavorite: false, sendToKitchen: true },
-  { categoryId: 'cat_bolinho',   name: 'Bolinho de Costela',     price: 55,  isFavorite: false, sendToKitchen: true },
-
-  // Petiscos
-  { categoryId: 'cat_petisco',   name: 'Jackpot Mineiro',        price: 55,  isFavorite: false, sendToKitchen: true },
-
-  // Combos
-  { categoryId: 'cat_combo',     name: "Mega Jackpot Bet's Bar", price: 130, isFavorite: false, sendToKitchen: true },
+  // Comidas
+  { categoryId: 'cat_comida',    name: 'All-In de Contra Filé',  price: 60,  isFavorite: false, sendToKitchen: true },
+  { categoryId: 'cat_comida',    name: 'Double Bet Suíno',       price: 50,  isFavorite: false, sendToKitchen: true },
+  { categoryId: 'cat_comida',    name: 'Lucky Wings',            price: 45,  isFavorite: false, sendToKitchen: true },
+  { categoryId: 'cat_comida',    name: 'Carta da Mesa',          price: 45,  isFavorite: false, sendToKitchen: true },
+  { categoryId: 'cat_comida',    name: 'Fritas Clássicas',       price: 20,  isFavorite: false, sendToKitchen: true },
+  { categoryId: 'cat_comida',    name: 'Fritas Premiadas',       price: 30,  isFavorite: false, sendToKitchen: true },
+  { categoryId: 'cat_comida',    name: 'Bolinho de Linguiça',    price: 50,  isFavorite: false, sendToKitchen: true },
+  { categoryId: 'cat_comida',    name: 'Bolinho de Costela',     price: 55,  isFavorite: false, sendToKitchen: true },
+  { categoryId: 'cat_comida',    name: 'Jackpot Mineiro',        price: 55,  isFavorite: false, sendToKitchen: true },
+  { categoryId: 'cat_comida',    name: "Mega Jackpot Bet's Bar", price: 130, isFavorite: false, sendToKitchen: true },
 ]
 
 // ─── Main ─────────────────────────────────────────────────────
