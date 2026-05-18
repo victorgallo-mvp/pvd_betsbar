@@ -11,6 +11,7 @@ import { cashRoutes } from './routes/cash.js'
 import { adminRoutes } from './routes/admin.js'
 import { reportsRoutes } from './routes/reports.js'
 import { configRoutes } from './routes/config.js'
+import { menuRoutes } from './routes/menu.js'
 import { clients } from './ws/broadcast.js'
 import { KitchenPrintService } from './services/KitchenPrintService.js'
 
@@ -37,6 +38,7 @@ await app.register(cashRoutes, { prefix: '/cash' })
 await app.register(adminRoutes, { prefix: '/admin' })
 await app.register(reportsRoutes, { prefix: '/reports' })
 await app.register(configRoutes, { prefix: '/config' })
+await app.register(menuRoutes, { prefix: '/menu' })
 
 const port = Number(process.env.PORT ?? 3001)
 

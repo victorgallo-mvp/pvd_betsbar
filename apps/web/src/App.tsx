@@ -15,6 +15,7 @@ import Cadastro from './pages/Cadastro'
 import Relatorio from './pages/Relatorio'
 import Configurar from './pages/Configurar'
 import Consulta from './pages/Consulta'
+import Cardapio from './pages/Cardapio'
 import { useAuth } from './stores/useAuth'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -26,6 +27,8 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <Routes>
+      <Route path="/cardapio" element={<Cardapio />} />
+
       <Route path="/login" element={<LoginPin />} />
 
       <Route path="/" element={<RequireAuth><MenuPrincipal /></RequireAuth>} />

@@ -55,11 +55,11 @@ const PRODUCTS: {
   { categoryId: 'cat_chopp',     name: 'Chopp 300ml',            price: 8,   isFavorite: false, sendToKitchen: false },
   { categoryId: 'cat_chopp',     name: 'Chopp 450ml',            price: 12,  isFavorite: true,  sendToKitchen: false },
 
-  // Drinks — ⚠️ SEM PREÇO NO PDF, inseridos com R$1 (placeholder)
-  { categoryId: 'cat_drinks',    name: 'Drink Red',              price: 1,   isFavorite: false, sendToKitchen: false, note: 'PREÇO PLACEHOLDER' },
-  { categoryId: 'cat_drinks',    name: 'Drink All In',           price: 1,   isFavorite: false, sendToKitchen: false, note: 'PREÇO PLACEHOLDER' },
-  { categoryId: 'cat_drinks',    name: 'Drink Green',            price: 1,   isFavorite: false, sendToKitchen: false, note: 'PREÇO PLACEHOLDER' },
-  { categoryId: 'cat_drinks',    name: 'Drink DNB',              price: 1,   isFavorite: false, sendToKitchen: false, note: 'PREÇO PLACEHOLDER' },
+  // Drinks
+  { categoryId: 'cat_drinks',    name: 'Drink Red',              price: 17,  isFavorite: false, sendToKitchen: false },
+  { categoryId: 'cat_drinks',    name: 'Drink All In',           price: 17,  isFavorite: false, sendToKitchen: false },
+  { categoryId: 'cat_drinks',    name: 'Drink Green',            price: 17,  isFavorite: false, sendToKitchen: false },
+  { categoryId: 'cat_drinks',    name: 'Drink DNB',              price: 17,  isFavorite: false, sendToKitchen: false },
 
   // Shot
   { categoryId: 'cat_shot',      name: 'Shot de Limão',          price: 2,   isFavorite: false, sendToKitchen: false },
