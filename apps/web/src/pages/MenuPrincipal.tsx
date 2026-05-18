@@ -14,17 +14,23 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../stores/useAuth'
 import { useCash } from '../stores/useCash'
+import { hasMinRole } from '../App'
+import type { UserRole } from '@pdv/shared'
 
-const menuItems = [
-  { id: 'venda',      label: 'Venda',          sub: 'Faz venda de produtos',       icon: ShoppingCart,  path: '/venda',    color: 'bg-slate-700 hover:bg-slate-600' },
-  { id: 'fundo',      label: 'Fundo de Caixa', sub: 'Insere fundo de caixa',       icon: Wallet,        path: '/caixa',    color: 'bg-emerald-700 hover:bg-emerald-600' },
-  { id: 'encerrar',   label: 'Encerrar',       sub: 'Totaliza movimento caixa',    icon: PowerOff,      path: '/encerrar', color: 'bg-slate-700 hover:bg-slate-600' },
-  { id: 'sangria',    label: 'Sangria',        sub: 'Realiza retirada do caixa',   icon: ArrowDownLeft, path: '/sangria',  color: 'bg-emerald-700 hover:bg-emerald-600' },
-  { id: 'cadastro',   label: 'Cadastro',       sub: 'Manutenção de cadastros',     icon: ClipboardList, path: '/cadastro', color: 'bg-emerald-700 hover:bg-emerald-600' },
-  { id: 'relatorio',  label: 'Relatório',      sub: 'Analisa sua movimentação',    icon: BarChart3,     path: '/relatorio',color: 'bg-slate-700 hover:bg-slate-600' },
-  { id: 'configurar', label: 'Configurar',     sub: 'Parâmetros, impressoras...',  icon: Settings,      path: '/config',   color: 'bg-emerald-700 hover:bg-emerald-600' },
-  { id: 'consulta',   label: 'Consulta',       sub: 'Consulta os produtos',        icon: Search,        path: '/consulta', color: 'bg-emerald-700 hover:bg-emerald-600' },
-  { id: 'sair',       label: 'Sair',           sub: 'Finaliza sistema',            icon: LogOut,        path: null,        color: 'bg-slate-700 hover:bg-slate-600' },
+const menuItems: {
+  id: string; label: string; sub: string
+  icon: React.ElementType; path: string | null
+  color: string; minRole: UserRole
+}[] = [
+  { id: 'venda',      label: 'Venda',          sub: 'Faz venda de produtos',       icon: ShoppingCart,  path: '/venda',    color: 'bg-slate-700 hover:bg-slate-600',     minRole: 'waiter'   },
+  { id: 'fundo',      label: 'Fundo de Caixa', sub: 'Insere fundo de caixa',       icon: Wallet,        path: '/caixa',    color: 'bg-emerald-700 hover:bg-emerald-600', minRole: 'operator' },
+  { id: 'encerrar',   label: 'Encerrar',       sub: 'Totaliza movimento caixa',    icon: PowerOff,      path: '/encerrar', color: 'bg-slate-700 hover:bg-slate-600',     minRole: 'operator' },
+  { id: 'sangria',    label: 'Sangria',        sub: 'Realiza retirada do caixa',   icon: ArrowDownLeft, path: '/sangria',  color: 'bg-emerald-700 hover:bg-emerald-600', minRole: 'operator' },
+  { id: 'cadastro',   label: 'Cadastro',       sub: 'Manutenção de cadastros',     icon: ClipboardList, path: '/cadastro', color: 'bg-emerald-700 hover:bg-emerald-600', minRole: 'admin'    },
+  { id: 'relatorio',  label: 'Relatório',      sub: 'Analisa sua movimentação',    icon: BarChart3,     path: '/relatorio',color: 'bg-slate-700 hover:bg-slate-600',     minRole: 'operator' },
+  { id: 'configurar', label: 'Configurar',     sub: 'Parâmetros, impressoras...',  icon: Settings,      path: '/config',   color: 'bg-emerald-700 hover:bg-emerald-600', minRole: 'admin'    },
+  { id: 'consulta',   label: 'Consulta',       sub: 'Consulta os produtos',        icon: Search,        path: '/consulta', color: 'bg-emerald-700 hover:bg-emerald-600', minRole: 'waiter'   },
+  { id: 'sair',       label: 'Sair',           sub: 'Finaliza sistema',            icon: LogOut,        path: null,        color: 'bg-slate-700 hover:bg-slate-600',     minRole: 'waiter'   },
 ]
 
 export default function MenuPrincipal() {
@@ -35,6 +41,10 @@ export default function MenuPrincipal() {
   useEffect(() => {
     fetchActiveSession()
   }, [fetchActiveSession])
+
+  const visibleItems = menuItems.filter((item) =>
+    user ? hasMinRole(user.role, item.minRole) : false,
+  )
 
   const handleItem = (item: typeof menuItems[0]) => {
     if (item.id === 'sair') { logout(); navigate('/login'); return }
@@ -67,7 +77,7 @@ export default function MenuPrincipal() {
 
       {/* Grid: 2 cols on mobile, 3 cols on tablet */}
       <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-2 p-3">
-        {menuItems.map((item) => {
+        {visibleItems.map((item) => {
           const Icon = item.icon
 
           // Highlight cash-related items based on session state
