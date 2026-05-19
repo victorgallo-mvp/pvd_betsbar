@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Settings, Printer, Store, CheckCircle, AlertCircle, Loader } from 'lucide-react'
+import { ArrowLeft, Settings, Printer, Store, CheckCircle, AlertCircle, Loader, QrCode } from 'lucide-react'
+import QRCode from 'react-qr-code'
 import { api } from '../lib/api'
 
 interface AppConfig {
@@ -57,6 +58,31 @@ function WidthToggle({ value, onChange }: { value: 58 | 80; onChange: (v: 58 | 8
 export default function Configurar() {
   const navigate = useNavigate()
   const [config, setConfig] = useState<AppConfig | null>(null)
+  const cardapioUrl = `${window.location.origin}/cardapio`
+  const qrRef = useRef<HTMLDivElement>(null)
+
+  const handlePrintQR = () => {
+    const svgEl = qrRef.current?.querySelector('svg')
+    if (!svgEl) return
+    const svgData = new XMLSerializer().serializeToString(svgEl)
+    const win = window.open('', '_blank')
+    if (!win) return
+    win.document.write(`
+      <html><head><title>QR Cardápio</title>
+      <style>
+        body { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; margin:0; font-family:sans-serif; }
+        svg { width:220px; height:220px; }
+        p { margin-top:12px; font-size:13px; color:#555; }
+        strong { display:block; font-size:16px; color:#111; margin-bottom:4px; }
+      </style></head>
+      <body>
+        ${svgData}
+        <p><strong>Bet's Bar — Cardápio</strong>${cardapioUrl}</p>
+        <script>window.onload=()=>{window.print();window.close()}<\/script>
+      </body></html>
+    `)
+    win.document.close()
+  }
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [testStatus, setTestStatus] = useState<'idle' | 'loading' | 'ok' | 'err'>('idle')
@@ -276,6 +302,31 @@ export default function Configurar() {
           <div className="bg-slate-900 rounded-xl p-3 text-xs text-slate-400 border border-slate-700">
             Quando o garçom toca em <strong className="text-slate-300">Concluir / Cozinha</strong>, os itens são enviados
             para esta impressora via ESC/POS (TCP/IP). Se offline, fica na fila e imprime quando voltar.
+          </div>
+        </Section>
+        {/* QR Code Cardápio */}
+        <Section title="Cardápio Online (QR Code)" icon={QrCode}>
+          <div className="flex flex-col items-center gap-4">
+            <div ref={qrRef} className="bg-white p-4 rounded-2xl">
+              <QRCode value={cardapioUrl} size={180} />
+            </div>
+            <p className="text-slate-400 text-xs text-center break-all">{cardapioUrl}</p>
+            <div className="flex gap-2 w-full">
+              <a
+                href={cardapioUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex-1 py-2.5 rounded-xl border-2 border-slate-600 text-slate-400 text-sm font-medium text-center hover:border-slate-500 hover:text-slate-200 touch-btn"
+              >
+                Abrir
+              </a>
+              <button
+                onClick={handlePrintQR}
+                className="flex-1 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-medium touch-btn"
+              >
+                Imprimir QR
+              </button>
+            </div>
           </div>
         </Section>
       </div>
