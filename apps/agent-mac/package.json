@@ -1,0 +1,10 @@
+{
+  "name": "betsbar-agente",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "node-thermal-printer": "^4.6.0",
+    "tsx": "^4.16.0"
+  }
+}
