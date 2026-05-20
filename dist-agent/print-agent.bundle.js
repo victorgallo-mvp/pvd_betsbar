@@ -9713,14 +9713,14 @@ var require_node_thermal_printer = __commonJS({
 // apps/api/src/print-agent.ts
 var import_node_thermal_printer = __toESM(require_node_thermal_printer(), 1);
 var API_URL = (process.env.RAILWAY_API_URL ?? "http://localhost:3000").replace(/\/$/, "");
-var PRINTER_IP = process.env.PRINTER_IP ?? "192.168.2.15";
+var PRINTER_IP = process.env.PRINTER_IP ?? "";
 var PRINTER_PORT = Number(process.env.PRINTER_PORT ?? 9100);
 var PRINTER_WIDTH = Number(process.env.PRINTER_WIDTH ?? 80);
-var KITCHEN_IP = process.env.KITCHEN_PRINTER_IP ?? PRINTER_IP;
+var KITCHEN_IP = process.env.KITCHEN_PRINTER_IP ?? "192.168.2.122";
 var KITCHEN_PORT = Number(process.env.KITCHEN_PRINTER_PORT ?? 9100);
 var POLL_MS = Number(process.env.POLL_MS ?? 5e3);
-var PRINTER_IFACE = process.env.PRINTER_INTERFACE ?? null;
-var KITCHEN_IFACE = process.env.KITCHEN_INTERFACE ?? PRINTER_IFACE;
+var PRINTER_IFACE = process.env.PRINTER_INTERFACE ?? "printer:Balcao";
+var KITCHEN_IFACE = process.env.KITCHEN_INTERFACE ?? null;
 var CHAR_COLS = PRINTER_WIDTH === 58 ? 32 : 48;
 function fmt(n) {
   return `R$ ${n.toFixed(2).replace(".", ",")}`;
