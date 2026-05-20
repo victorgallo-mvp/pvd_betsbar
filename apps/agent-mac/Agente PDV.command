@@ -6,26 +6,20 @@
 
 export RAILWAY_API_URL="https://radiant-success-production-f5e3.up.railway.app"
 
-# ── MODO DE CONEXÃO DA IMPRESSORA ───────────────────────────
+# ── IMPRESSORA BALCÃO (USB via sistema do Mac) ───────────────
 #
-#  Escolha UM dos modos abaixo e comente o outro.
+#  Impressora instalada via USB no Mac — usa o sistema CUPS do macOS.
+#  O nome abaixo é o nome exato que aparece em: lpstat -p -d
 #
-#  MODO REDE (TCP/IP) — impressora conectada via cabo de rede ou Wi-Fi:
-export PRINTER_IP="192.168.2.15"
-export PRINTER_PORT="9100"
-#
-#  MODO USB — impressora conectada via cabo USB no Mac:
-#  1. Conecte a impressora e rode no Terminal: ls /dev/cu.*
-#  2. Copie o nome do dispositivo (ex: /dev/cu.usbserial-1410) e cole abaixo
-#  3. Comente as linhas PRINTER_IP e PRINTER_PORT acima
-# export PRINTER_INTERFACE="/dev/cu.usbserial-1410"
+export PRINTER_INTERFACE="cups:PrinterCMD_ESCPO_POS80_Printer_USB"
 #
 # ────────────────────────────────────────────────────────────
 
 export PRINTER_WIDTH="80"
 
-# Impressora de cozinha (deixe igual ao PRINTER_IP se for a mesma)
-export KITCHEN_PRINTER_IP="192.168.2.20"
+# ── IMPRESSORA COZINHA (rede TCP/IP) ─────────────────────────
+export KITCHEN_PRINTER_IP="192.168.2.122"
+export KITCHEN_PRINTER_PORT="9100"
 
 # Intervalo de polling em ms (padrão: 5000)
 # export POLL_MS="5000"
@@ -40,14 +34,17 @@ echo "========================================"
 echo "  Agente de Impressão - Betsbar PDV"
 echo "========================================"
 echo ""
-if [ -n "$PRINTER_INTERFACE" ]; then
-  echo "  Modo:             USB"
+if [[ "$PRINTER_INTERFACE" == cups:* ]]; then
+  echo "  Balcão:           CUPS (USB Mac)"
+  echo "  Impressora:       ${PRINTER_INTERFACE#cups:}"
+elif [ -n "$PRINTER_INTERFACE" ]; then
+  echo "  Balcão:           USB Serial"
   echo "  Dispositivo:      $PRINTER_INTERFACE"
 else
-  echo "  Modo:             Rede (TCP)"
+  echo "  Balcão:           Rede (TCP)"
   echo "  Impressora:       $PRINTER_IP:$PRINTER_PORT"
 fi
-echo "  Cozinha:          ${KITCHEN_PRINTER_IP:-$PRINTER_IP}:${PRINTER_PORT:-9100}"
+echo "  Cozinha:          ${KITCHEN_PRINTER_IP}:${KITCHEN_PRINTER_PORT:-9100}"
 echo "  API:              $RAILWAY_API_URL"
 echo ""
 

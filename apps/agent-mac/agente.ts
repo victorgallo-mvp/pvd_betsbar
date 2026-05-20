@@ -22,6 +22,7 @@
 
 // @ts-ignore
 import ThermalPrinter from 'node-thermal-printer'
+import { spawn } from 'node:child_process'
 
 const API_URL          = (process.env.RAILWAY_API_URL ?? 'http://localhost:3000').replace(/\/$/, '')
 const PRINTER_WIDTH    = Number(process.env.PRINTER_WIDTH ?? 80) as 58 | 80
@@ -43,11 +44,26 @@ function fmt(n: number) { return `R$ ${n.toFixed(2).replace('.', ',')}` }
 // ─── Printer helpers ──────────────────────────────────────────
 
 function makePrinter(ip: string, port: number, cols: number, ifaceOverride?: string | null) {
+  // For CUPS mode, pass a dummy TCP so the object builds — we'll never call execute()
+  const iface = (ifaceOverride?.startsWith('cups:'))
+    ? 'tcp://127.0.0.1:9999'
+    : ifaceOverride ?? `tcp://${ip}:${port}`
   return new ThermalPrinter.ThermalPrinter({
     type: ThermalPrinter.types.EPSON,
-    interface: ifaceOverride ?? `tcp://${ip}:${port}`,
+    interface: iface,
     width: cols,
     characterSet: ThermalPrinter.CharacterSet.PC860_PORTUGUESE,
+  })
+}
+
+// Pipe raw ESC/POS bytes to a CUPS-installed printer (Mac)
+async function printViaCups(printerName: string, buf: Buffer): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn('lp', ['-d', printerName, '-o', 'raw', '-'])
+    proc.stdin.write(buf)
+    proc.stdin.end()
+    proc.on('close', (code) => code === 0 ? resolve() : reject(new Error(`lp saiu com código ${code}`)))
+    proc.on('error', reject)
   })
 }
 
@@ -74,10 +90,13 @@ const METHOD_LABELS: Record<string, string> = {
 }
 
 async function printReceipt(payload: PrintPayload): Promise<void> {
+  const cupsName = PRINTER_IFACE?.startsWith('cups:') ? PRINTER_IFACE.slice(5) : null
   const printer = makePrinter(PRINTER_IP, PRINTER_PORT, CHAR_COLS, PRINTER_IFACE)
 
-  const isConnected = await printer.isPrinterConnected()
-  if (!isConnected) throw new Error(`Impressora offline: ${PRINTER_IFACE ?? `${PRINTER_IP}:${PRINTER_PORT}`}`)
+  if (!cupsName) {
+    const isConnected = await printer.isPrinterConnected()
+    if (!isConnected) throw new Error(`Impressora offline: ${PRINTER_IFACE ?? `${PRINTER_IP}:${PRINTER_PORT}`}`)
+  }
 
   printer.alignCenter()
   printer.setTextDoubleHeight()
@@ -124,7 +143,12 @@ async function printReceipt(payload: PrintPayload): Promise<void> {
   printer.println('Obrigado pela visita!')
   printer.newLine()
   printer.cut()
-  await printer.execute()
+
+  if (cupsName) {
+    await printViaCups(cupsName, printer.getBuffer() as Buffer)
+  } else {
+    await printer.execute()
+  }
   printer.clear()
 }
 
