@@ -77,6 +77,7 @@ function ProdutosTab({ categories }: { categories: Category[] }) {
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState<Product | null>(null)
   const [adding, setAdding] = useState(false)
+  const [deleting, setDeleting] = useState<Product | null>(null)
   const [form, setForm] = useState({ categoryId: '', name: '', price: '', isFavorite: false, sendToKitchen: true })
 
   const load = () => api.get<Product[]>('/admin/products').then(setItems)
@@ -91,6 +92,13 @@ function ProdutosTab({ categories }: { categories: Category[] }) {
     const data = { ...form, price: Number(form.price) }
     if (editing) { await api.patch(`/admin/products/${editing.id}`, data); setEditing(null) }
     else { await api.post('/admin/products', data); setAdding(false) }
+    load()
+  }
+
+  const confirmDelete = async () => {
+    if (!deleting) return
+    await api.delete(`/admin/products/${deleting.id}`)
+    setDeleting(null)
     load()
   }
 
@@ -139,14 +147,29 @@ function ProdutosTab({ categories }: { categories: Category[] }) {
             </div>
             <span className="text-emerald-400 font-semibold text-sm shrink-0">{fmtBRL(p.price)}</span>
             <button onClick={() => openEdit(p)} className="text-slate-500 hover:text-slate-200 touch-btn"><Pencil size={15} /></button>
-            <button onClick={() => toggle(p)} className={`touch-btn ${p.active ? 'text-slate-500 hover:text-rose-400' : 'text-slate-600 hover:text-emerald-400'}`}>
+            <button onClick={() => toggle(p)} className={`touch-btn ${p.active ? 'text-slate-500 hover:text-amber-400' : 'text-slate-600 hover:text-emerald-400'}`}>
               {p.active ? <X size={15} /> : <Check size={15} />}
             </button>
+            <button onClick={() => setDeleting(p)} className="text-slate-600 hover:text-rose-400 touch-btn"><Trash2 size={15} /></button>
           </div>
         ))}
       </div>
       {adding && <Modal title="Novo Produto" onClose={() => setAdding(false)}>{FormContent()}</Modal>}
       {editing && <Modal title="Editar Produto" onClose={() => setEditing(null)}>{FormContent()}</Modal>}
+      {deleting && (
+        <Modal title="Excluir Produto" onClose={() => setDeleting(null)}>
+          <p className="text-slate-300 text-sm">
+            Excluir <span className="font-semibold text-white">"{deleting.name}"</span>?
+          </p>
+          <p className="text-slate-500 text-xs">
+            Se o produto já foi usado em vendas, ele será desativado em vez de excluído.
+          </p>
+          <div className="flex gap-3">
+            <button onClick={() => setDeleting(null)} className="flex-1 py-3 rounded-xl bg-slate-700 text-slate-300 touch-btn">Cancelar</button>
+            <button onClick={confirmDelete} className="flex-1 py-3 rounded-xl bg-rose-700 hover:bg-rose-600 text-white font-bold touch-btn">Excluir</button>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

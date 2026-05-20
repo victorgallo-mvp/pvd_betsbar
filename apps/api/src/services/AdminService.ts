@@ -33,6 +33,15 @@ export const AdminService = {
     return { ...row, price: Number(row.price) }
   },
 
+  async removeProduct(id: string) {
+    try {
+      await prisma.product.delete({ where: { id } })
+    } catch {
+      // FK constraint (product has sale history) — deactivate instead
+      await prisma.product.update({ where: { id }, data: { active: false } })
+    }
+  },
+
   // ── Categories ────────────────────────────────────────────
   async listCategories(includeInactive = true) {
     return prisma.category.findMany({

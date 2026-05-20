@@ -28,6 +28,16 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     }
   })
 
+  app.delete('/products/:id', async (request, reply) => {
+    const { id } = request.params as { id: string }
+    try {
+      await AdminService.removeProduct(id)
+      return reply.status(204).send()
+    } catch (e) {
+      return reply.status(400).send({ error: (e as Error).message })
+    }
+  })
+
   // ── Categories ────────────────────────────────────────────
   app.get('/categories', async () => AdminService.listCategories())
 
