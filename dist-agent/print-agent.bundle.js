@@ -1198,7 +1198,7 @@ var require_bitpacker = __commonJS({
         options.colorType
       ) !== -1;
       if (options.colorType === options.inputColorType) {
-        let bigEndian = (function() {
+        let bigEndian = function() {
           let buffer = new ArrayBuffer(2);
           new DataView(buffer).setInt16(
             0,
@@ -1207,7 +1207,7 @@ var require_bitpacker = __commonJS({
             /* littleEndian */
           );
           return new Int16Array(buffer)[0] !== 256;
-        })();
+        }();
         if (options.bitDepth === 8 || options.bitDepth === 16 && bigEndian) {
           return dataIn;
         }
@@ -9713,14 +9713,14 @@ var require_node_thermal_printer = __commonJS({
 // apps/api/src/print-agent.ts
 var import_node_thermal_printer = __toESM(require_node_thermal_printer(), 1);
 var API_URL = (process.env.RAILWAY_API_URL ?? "http://localhost:3000").replace(/\/$/, "");
+var PRINTER_IP = process.env.PRINTER_IP ?? "192.168.2.15";
+var PRINTER_PORT = Number(process.env.PRINTER_PORT ?? 9100);
 var PRINTER_WIDTH = Number(process.env.PRINTER_WIDTH ?? 80);
+var KITCHEN_IP = process.env.KITCHEN_PRINTER_IP ?? PRINTER_IP;
+var KITCHEN_PORT = Number(process.env.KITCHEN_PRINTER_PORT ?? 9100);
 var POLL_MS = Number(process.env.POLL_MS ?? 5e3);
 var PRINTER_IFACE = process.env.PRINTER_INTERFACE ?? null;
-var KITCHEN_IFACE = process.env.KITCHEN_INTERFACE ?? null;
-var PRINTER_IP = process.env.PRINTER_IP ?? "";
-var PRINTER_PORT = Number(process.env.PRINTER_PORT ?? 9100);
-var KITCHEN_IP = process.env.KITCHEN_PRINTER_IP ?? "";
-var KITCHEN_PORT = Number(process.env.KITCHEN_PRINTER_PORT ?? 9100);
+var KITCHEN_IFACE = process.env.KITCHEN_INTERFACE ?? PRINTER_IFACE;
 var CHAR_COLS = PRINTER_WIDTH === 58 ? 32 : 48;
 function fmt(n) {
   return `R$ ${n.toFixed(2).replace(".", ",")}`;
@@ -9862,34 +9862,10 @@ async function poll() {
     }
   }
 }
-async function loadRemoteConfig() {
-  if (process.env.PRINTER_IP && process.env.KITCHEN_PRINTER_IP) return;
-  try {
-    const res = await fetch(`${API_URL}/config`);
-    if (!res.ok) return;
-    const cfg = await res.json();
-    if (!process.env.PRINTER_IP && cfg.printer?.ip) {
-      PRINTER_IP = cfg.printer.ip;
-      if (!process.env.PRINTER_PORT) PRINTER_PORT = cfg.printer.port || 9100;
-    }
-    if (!process.env.KITCHEN_PRINTER_IP && cfg.kitchenPrinter?.ip) {
-      KITCHEN_IP = cfg.kitchenPrinter.ip;
-      if (!process.env.KITCHEN_PRINTER_PORT) KITCHEN_PORT = cfg.kitchenPrinter.port || 9100;
-    }
-    console.log("[agent] Config carregada da API");
-  } catch (err) {
-    console.warn("[agent] Config remota indispon\xEDvel, usando env vars:", err.message);
-  }
-  if (!KITCHEN_IP) KITCHEN_IP = PRINTER_IP;
-}
-async function start() {
-  await loadRemoteConfig();
-  console.log(`[agent] Iniciado \u2014 API: ${API_URL}`);
-  console.log(`[agent] Impressora balc\xE3o:  ${PRINTER_IFACE ?? `${PRINTER_IP}:${PRINTER_PORT}`}`);
-  console.log(`[agent] Impressora cozinha: ${KITCHEN_IFACE ?? `${KITCHEN_IP}:${KITCHEN_PORT}`}`);
-  console.log(`[agent] Polling a cada ${POLL_MS}ms
+console.log(`[agent] Iniciado \u2014 API: ${API_URL}`);
+console.log(`[agent] Impressora recibo: ${PRINTER_IFACE ?? `${PRINTER_IP}:${PRINTER_PORT}`}`);
+console.log(`[agent] Impressora cozinha: ${KITCHEN_IFACE ?? `${KITCHEN_IP}:${KITCHEN_PORT}`}`);
+console.log(`[agent] Polling a cada ${POLL_MS}ms
 `);
-  void poll();
-  setInterval(() => void poll(), POLL_MS);
-}
-void start();
+void poll();
+setInterval(() => void poll(), POLL_MS);

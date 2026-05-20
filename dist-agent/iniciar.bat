@@ -18,5 +18,5 @@ set KITCHEN_PRINTER_PORT=9100
 :: Intervalo de polling em ms (padrao: 5000)
 :: set POLL_MS=5000
 
-node print-agent.bundle.js
+print-agent.exe
 pause
