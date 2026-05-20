@@ -8,7 +8,7 @@ set RAILWAY_API_URL=https://radiant-success-production-f5e3.up.railway.app
 
 :: ── IMPRESSORA BALCAO (USB via driver Windows) ──────────────
 :: Nome exato da impressora conforme aparece em: Painel de Controle > Dispositivos e Impressoras
-set PRINTER_INTERFACE=printer:PrinterCMD_ESCPO_POS80_Printer_USB
+set PRINTER_INTERFACE=printer:Balcao
 set PRINTER_WIDTH=80
 
 :: ── IMPRESSORA COZINHA (rede TCP/IP) ────────────────────────
