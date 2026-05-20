@@ -10,7 +10,7 @@ interface LocationState {
 
 type Choice = 'print' | 'skip'
 
-// Matches images 09 and 10: dialog shown after payment on Balcão/Delivery.
+// Shown after payment for all sale types (table, counter, delivery).
 // REGRA: ficha só imprime após recebimento — PrintService valida isso na API.
 export default function PrintConfirm() {
   const { saleId } = useParams<{ saleId: string }>()
@@ -21,6 +21,7 @@ export default function PrintConfirm() {
   const trocoCents = (location.state as LocationState)?.trocoCents ?? 0
   const [choice, setChoice] = useState<Choice>('print')
   const [confirming, setConfirming] = useState(false)
+  const [printed, setPrinted] = useState(false)
 
   useEffect(() => {
     if (!saleOperator) navigate('/venda')
@@ -35,23 +36,26 @@ export default function PrintConfirm() {
 
     try {
       if (choice === 'print') {
-        // Create job in API (validates payment was received)
         const job = await api.post<{ id: string; payload: string }>('/print/sale/' + saleId, {})
         const payload = JSON.parse(job.payload) as PrintPayload
         printReceipt(payload)
         await api.patch(`/print/${job.id}`, { action: 'printed' })
+        setPrinted(true)
       } else {
-        // Log the skip but don't print anything
         const job = await api.post<{ id: string }>('/print/sale/' + saleId, {})
         await api.patch(`/print/${job.id}`, { action: 'skipped' })
       }
     } catch {
-      // If print job creation fails (shouldn't happen — sale is paid), proceed anyway
+      // print failure must not block flow
     }
 
+    const nextPath = sale?.type === 'table' ? '/mesa' : sale?.type === 'delivery' ? '/' : '/balcao'
     clearSale()
-    const nextPath = sale?.type === 'delivery' ? '/' : '/balcao'
-    navigate(nextPath)
+    if (choice === 'print') {
+      setTimeout(() => navigate(nextPath), 1200)
+    } else {
+      navigate(nextPath)
+    }
   }
 
   const fmtBRL = (n: number) =>
@@ -120,6 +124,12 @@ export default function PrintConfirm() {
           </div>
         )}
 
+        {printed && (
+          <div className="w-full py-2 rounded-xl bg-emerald-100 text-emerald-700 text-sm font-semibold text-center">
+            Imprimindo comprovante...
+          </div>
+        )}
+
         <button
           onClick={handleConfirm}
           disabled={confirming}
@@ -128,7 +138,7 @@ export default function PrintConfirm() {
             font-bold text-base touch-btn disabled:opacity-50
           "
         >
-          {confirming ? 'Aguarde...' : 'CONFIRMAR'}
+          {confirming && !printed ? 'Aguarde...' : confirming && printed ? 'Imprimindo...' : 'CONFIRMAR'}
         </button>
       </div>
     </div>

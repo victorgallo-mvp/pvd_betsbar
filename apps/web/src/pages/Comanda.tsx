@@ -105,7 +105,8 @@ export default function Comanda() {
   const handleConta = async () => {
     if (!saleId) return
     await requestBill(saleId, 1)
-    navigate('/mesa')
+    showToast('Comprovante enviado para impressora ✓', 'success')
+    setTimeout(() => navigate('/mesa'), 2000)
   }
 
   const handleFecharMesa = async () => {

@@ -64,8 +64,8 @@ export default function Pagamento() {
     const result = await registerPayment(saleId, method, amountToApply / 100)
     if (result.status === 'paid') {
       setDone(true)
-      const nextPath = result.type === 'table' ? '/mesa' : result.type === 'delivery' ? '/venda' : '/balcao'
-      setTimeout(() => navigate(nextPath), 1500)
+      const trocoVal = darTroco ? trocoCents : 0
+      setTimeout(() => navigate(`/print-confirm/${saleId}`, { state: { trocoCents: trocoVal } }), 1500)
     } else {
       // partial — reload, decrement split, recalc
       await loadSale(saleId)
@@ -85,7 +85,7 @@ export default function Pagamento() {
             <Check size={44} className="text-white" />
           </div>
           <div className="text-2xl font-bold text-emerald-400">Pagamento confirmado!</div>
-          <div className="text-slate-400 text-sm">Mesa liberada</div>
+          <div className="text-slate-400 text-sm">Gerando comprovante...</div>
         </div>
       </div>
     )
