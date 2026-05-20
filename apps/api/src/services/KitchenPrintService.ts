@@ -122,7 +122,14 @@ export const KitchenPrintService = {
 
     // Only send items whose product is flagged for kitchen printing
     const kitchenItems = sale.items.filter((i) => i.product.sendToKitchen)
-    if (kitchenItems.length === 0) return { printed: 0, queued: 0 }
+    if (kitchenItems.length === 0) {
+      // No kitchen items (e.g. only beverages) — still mark all pending as sent
+      await prisma.saleItem.updateMany({
+        where: { saleId, sentToProduction: false, cancelled: false },
+        data: { sentToProduction: true },
+      })
+      return { printed: 0, queued: 0 }
+    }
 
     const payload: KitchenPayload = {
       saleId: sale.id,

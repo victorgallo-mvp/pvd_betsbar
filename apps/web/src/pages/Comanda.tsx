@@ -98,7 +98,7 @@ export default function Comanda() {
     } else if (printed > 0) {
       showToast('Pedido enviado pra cozinha ✓', 'success')
     } else {
-      showToast('Nenhum item novo para enviar', 'warning')
+      showToast('Pedido lançado ✓', 'success')
     }
   }
 
@@ -196,19 +196,19 @@ export default function Comanda() {
         { icon: CreditCard,     label: 'Pagar',    action: handlePagar,                    active: true },
         { icon: Plus,           label: 'Qtde',     action: () => {},                       active: false },
         { icon: ArrowRightLeft, label: 'Transf.',  action: () => {},                       active: false },
-        { icon: CheckCheck,     label: 'Concluir', action: handleConcluir,                 active: pendingCount > 0 },
+        { icon: CheckCheck,     label: 'Lançar',   action: handleConcluir,                 active: pendingCount > 0 },
       ].map(({ icon: Icon, label, action, active }) => (
         <button key={label} onClick={action} disabled={!active}
           className={`flex flex-col items-center justify-center gap-0.5 py-2 rounded-lg text-[10px] touch-btn
             ${active
-              ? label === 'Concluir' ? 'bg-emerald-700 hover:bg-emerald-600 text-white'
+              ? label === 'Lançar' ? 'bg-emerald-700 hover:bg-emerald-600 text-white'
               : label === 'Pagar' ? 'bg-blue-700 hover:bg-blue-600 text-white'
               : label === 'Fechar' ? 'bg-rose-800 hover:bg-rose-700 text-white'
               : 'bg-slate-700 hover:bg-slate-600 text-slate-200'
               : 'bg-slate-800 text-slate-600 cursor-not-allowed'}`}>
           <Icon size={18} />
           <span className="leading-tight text-center">{label}</span>
-          {label === 'Concluir' && pendingCount > 0 && (
+          {label === 'Lançar' && pendingCount > 0 && (
             <span className="bg-amber-500 text-black text-[9px] font-bold px-1 rounded-full">{pendingCount}</span>
           )}
         </button>
