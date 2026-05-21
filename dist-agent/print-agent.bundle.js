@@ -9939,7 +9939,10 @@ async function start() {
   console.log(`[agent] Impressora cozinha: ${KITCHEN_IFACE ?? `${KITCHEN_IP}:${KITCHEN_PORT}`}`);
   console.log(`[agent] Polling a cada ${POLL_MS}ms
 `);
-  void poll();
-  setInterval(() => void poll(), POLL_MS);
+  const loop = async () => {
+    await poll();
+    setTimeout(() => void loop(), POLL_MS);
+  };
+  void loop();
 }
 void start();
