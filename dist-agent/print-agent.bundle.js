@@ -9713,6 +9713,9 @@ var require_node_thermal_printer = __commonJS({
 // src/print-agent.ts
 var import_node_thermal_printer = __toESM(require_node_thermal_printer(), 1);
 var import_node_child_process = require("node:child_process");
+var import_node_fs = require("node:fs");
+var import_node_os = require("node:os");
+var import_node_path = require("node:path");
 var API_URL = (process.env.RAILWAY_API_URL ?? "http://localhost:3000").replace(/\/$/, "");
 var PRINTER_WIDTH = Number(process.env.PRINTER_WIDTH ?? 80);
 var POLL_MS = Number(process.env.POLL_MS ?? 5e3);
@@ -9735,10 +9738,12 @@ async function printViaCups(printerName, buf) {
     proc.on("error", reject);
   });
 }
-var WIN_PRINT_PS = `
+function buildWinPs(tmpFile, printerName) {
+  const escaped = tmpFile.replace(/'/g, "''");
+  const escapedName = printerName.replace(/'/g, "''");
+  return `
 $ErrorActionPreference = 'Stop'
-$name  = $env:WIN_PRINTER_NAME
-$bytes = [Convert]::FromBase64String($env:WIN_PRINTER_DATA)
+$bytes = [System.IO.File]::ReadAllBytes('${escaped}')
 $src = @'
 using System;
 using System.Runtime.InteropServices;
@@ -9767,25 +9772,37 @@ public static class RawPrinter {
 }
 '@
 Add-Type -TypeDefinition $src -Language CSharp
-[RawPrinter]::Send($name, $bytes)
+[RawPrinter]::Send('${escapedName}', $bytes)
+Remove-Item -Force '${escaped}'
 `;
+}
 async function printViaWindows(printerName, buf) {
+  const tmpFile = (0, import_node_path.join)((0, import_node_os.tmpdir)(), `escpos_${Date.now()}.bin`);
+  (0, import_node_fs.writeFileSync)(tmpFile, buf);
   return new Promise((resolve, reject) => {
-    const proc = (0, import_node_child_process.spawn)("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", "-"], {
-      env: {
-        ...process.env,
-        WIN_PRINTER_NAME: printerName,
-        WIN_PRINTER_DATA: buf.toString("base64")
-      }
-    });
+    const ps = buildWinPs(tmpFile, printerName);
+    const proc = (0, import_node_child_process.spawn)("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", "-"]);
     let stderr = "";
     proc.stderr.on("data", (d) => {
       stderr += d.toString();
     });
-    proc.stdin.write(WIN_PRINT_PS);
+    proc.stdin.write(ps);
     proc.stdin.end();
-    proc.on("close", (code) => code === 0 ? resolve() : reject(new Error(`PowerShell saiu com c\xF3digo ${code}: ${stderr.trim()}`)));
-    proc.on("error", reject);
+    proc.on("close", (code) => {
+      try {
+        (0, import_node_fs.unlinkSync)(tmpFile);
+      } catch {
+      }
+      if (code === 0) resolve();
+      else reject(new Error(`PowerShell saiu com c\xF3digo ${code}: ${stderr.trim()}`));
+    });
+    proc.on("error", (err) => {
+      try {
+        (0, import_node_fs.unlinkSync)(tmpFile);
+      } catch {
+      }
+      reject(err);
+    });
   });
 }
 function makePrinter(ip, port, cols, ifaceOverride) {
