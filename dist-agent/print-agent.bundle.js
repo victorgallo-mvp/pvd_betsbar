@@ -9713,9 +9713,6 @@ var require_node_thermal_printer = __commonJS({
 // apps/api/src/print-agent.ts
 var import_node_thermal_printer = __toESM(require_node_thermal_printer(), 1);
 var import_node_child_process = require("node:child_process");
-var import_node_fs = require("node:fs");
-var import_node_path = require("node:path");
-var import_node_os = require("node:os");
 var API_URL = (process.env.RAILWAY_API_URL ?? "http://localhost:3000").replace(/\/$/, "");
 var PRINTER_WIDTH = Number(process.env.PRINTER_WIDTH ?? 80);
 var POLL_MS = Number(process.env.POLL_MS ?? 5e3);
@@ -9729,84 +9726,6 @@ var CHAR_COLS = PRINTER_WIDTH === 58 ? 32 : 48;
 function fmt(n) {
   return `R$ ${n.toFixed(2).replace(".", ",")}`;
 }
-async function printViaWin(printerName, buf) {
-  const ts = Date.now();
-  const binFile = (0, import_node_path.join)((0, import_node_os.tmpdir)(), `pvd_${ts}.bin`);
-  const ps1File = (0, import_node_path.join)((0, import_node_os.tmpdir)(), `pvd_${ts}.ps1`);
-  (0, import_node_fs.writeFileSync)(binFile, buf);
-  const safeName = printerName.replace(/'/g, "''");
-  const safeBin = binFile.replace(/\\/g, "\\\\");
-  const script = `
-Add-Type -TypeDefinition @"
-using System;
-using System.Runtime.InteropServices;
-public class WinSpool {
-  [DllImport("winspool.drv", CharSet=CharSet.Auto, SetLastError=true)]
-  public static extern bool OpenPrinter(string name, out IntPtr handle, IntPtr def);
-  [DllImport("winspool.drv", CharSet=CharSet.Auto, SetLastError=true)]
-  public static extern bool ClosePrinter(IntPtr handle);
-  [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Auto)]
-  public struct DOCINFO { public string pDocName; public string pOutputFile; public string pDataType; }
-  [DllImport("winspool.drv", CharSet=CharSet.Auto, SetLastError=true)]
-  public static extern int StartDocPrinter(IntPtr handle, int level, ref DOCINFO di);
-  [DllImport("winspool.drv", SetLastError=true)]
-  public static extern bool EndDocPrinter(IntPtr handle);
-  [DllImport("winspool.drv", SetLastError=true)]
-  public static extern bool StartPagePrinter(IntPtr handle);
-  [DllImport("winspool.drv", SetLastError=true)]
-  public static extern bool EndPagePrinter(IntPtr handle);
-  [DllImport("winspool.drv", SetLastError=true)]
-  public static extern bool WritePrinter(IntPtr handle, IntPtr buf, int count, out int written);
-  public static string Print(string printer, byte[] data) {
-    IntPtr h;
-    if (!OpenPrinter(printer, out h, IntPtr.Zero))
-      return "OpenPrinter falhou \u2014 erro Win32: " + Marshal.GetLastWin32Error();
-    var di = new DOCINFO { pDocName="RAW", pOutputFile=null, pDataType="RAW" };
-    if (StartDocPrinter(h, 1, ref di) == 0) {
-      int e = Marshal.GetLastWin32Error(); ClosePrinter(h);
-      return "StartDocPrinter falhou \u2014 erro Win32: " + e;
-    }
-    if (!StartPagePrinter(h)) {
-      int e = Marshal.GetLastWin32Error(); EndDocPrinter(h); ClosePrinter(h);
-      return "StartPagePrinter falhou \u2014 erro Win32: " + e;
-    }
-    IntPtr p = Marshal.AllocCoTaskMem(data.Length);
-    Marshal.Copy(data, 0, p, data.Length);
-    int written; bool ok = WritePrinter(h, p, data.Length, out written);
-    int we = Marshal.GetLastWin32Error();
-    Marshal.FreeCoTaskMem(p);
-    EndPagePrinter(h); EndDocPrinter(h); ClosePrinter(h);
-    if (!ok) return "WritePrinter falhou \u2014 erro Win32: " + we + " bytes escritos: " + written;
-    return "ok";
-  }
-}
-"@ -Language CSharp
-$bytes = [IO.File]::ReadAllBytes('${safeBin}')
-$result = [WinSpool]::Print('${safeName}', $bytes)
-Remove-Item '${safeBin}' -ErrorAction SilentlyContinue
-Write-Host "WinSpool resultado: $result"
-if ($result -ne 'ok') { Write-Error $result; exit 1 }
-`;
-  (0, import_node_fs.writeFileSync)(ps1File, script, "utf8");
-  return new Promise((resolve, reject) => {
-    const proc = (0, import_node_child_process.spawn)("powershell", ["-ExecutionPolicy", "Bypass", "-NonInteractive", "-File", ps1File]);
-    const errs = [];
-    proc.stderr?.on("data", (d) => errs.push(d.toString()));
-    proc.on("close", (code) => {
-      try {
-        (0, import_node_fs.unlinkSync)(ps1File);
-      } catch {
-      }
-      try {
-        (0, import_node_fs.unlinkSync)(binFile);
-      } catch {
-      }
-      if (code === 0) resolve();
-      else reject(new Error(`WinSpool falhou (${code}): ${errs.join("")}`));
-    });
-    proc.on("error", reject);
-  });
-}
 async function printViaCups(printerName, buf) {
   return new Promise((resolve, reject) => {
     const proc = (0, import_node_child_process.spawn)("lp", ["-d", printerName, "-o", "raw", "-"]);
@@ -9817,18 +9736,24 @@ async function printViaCups(printerName, buf) {
   });
 }
 function makePrinter(ip, port, cols, ifaceOverride) {
-  const iface = ifaceOverride?.startsWith("win:") || ifaceOverride?.startsWith("cups:") ? "tcp://127.0.0.1:19100" : ifaceOverride ?? `tcp://${ip}:${port}`;
-  return new import_node_thermal_printer.default.ThermalPrinter({
+  const iface = ifaceOverride?.startsWith("cups:") ? "tcp://127.0.0.1:19100" : ifaceOverride ?? `tcp://${ip}:${port}`;
+  const opts = {
     type: import_node_thermal_printer.default.types.EPSON,
     interface: iface,
     width: cols,
     characterSet: import_node_thermal_printer.default.CharacterSet.PC860_PORTUGUESE
-  });
+  };
+  if (ifaceOverride?.startsWith("printer:")) {
+    try {
+      opts.driver = require("@thiagoelg/node-printer");
+    } catch {
+      throw new Error("Driver USB n\xE3o encontrado. Feche e abra o iniciar.bat novamente para instalar.");
+    }
+  }
+  return new import_node_thermal_printer.default.ThermalPrinter(opts);
 }
 async function sendBuffer(iface, ip, port, printer) {
-  if (iface?.startsWith("win:")) {
-    await printViaWin(iface.slice(4), printer.getBuffer());
-  } else if (iface?.startsWith("cups:")) {
+  if (iface?.startsWith("cups:")) {
     await printViaCups(iface.slice(5), printer.getBuffer());
   } else {
     const ok = await printer.isPrinterConnected();

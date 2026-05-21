@@ -17,9 +17,6 @@
 // @ts-ignore
 import ThermalPrinter from 'node-thermal-printer'
 import { spawn } from 'node:child_process'
-import { writeFileSync, unlinkSync } from 'node:fs'
-import { join } from 'node:path'
-import { tmpdir } from 'node:os'
 
 const API_URL       = (process.env.RAILWAY_API_URL ?? 'http://localhost:3000').replace(/\/$/, '')
 const PRINTER_WIDTH = Number(process.env.PRINTER_WIDTH ?? 80) as 58 | 80
@@ -36,86 +33,6 @@ const CHAR_COLS = PRINTER_WIDTH === 58 ? 32 : 48
 
 function fmt(n: number) { return `R$ ${n.toFixed(2).replace('.', ',')}` }
 
-// ─── Windows raw print via winspool.drv (PowerShell + P/Invoke) ──
-// Sends ESC/POS bytes through the Windows print spooler with RAW type.
-// This is the same mechanism used by node-printer internally.
-async function printViaWin(printerName: string, buf: Buffer): Promise<void> {
-  const ts      = Date.now()
-  const binFile = join(tmpdir(), `pvd_${ts}.bin`)
-  const ps1File = join(tmpdir(), `pvd_${ts}.ps1`)
-
-  writeFileSync(binFile, buf)
-
-  const safeName = printerName.replace(/'/g, "''")
-  const safeBin  = binFile.replace(/\\/g, '\\\\')
-
-  const script = `
-Add-Type -TypeDefinition @"
-using System;
-using System.Runtime.InteropServices;
-public class WinSpool {
-  [DllImport("winspool.drv", CharSet=CharSet.Auto, SetLastError=true)]
-  public static extern bool OpenPrinter(string name, out IntPtr handle, IntPtr def);
-  [DllImport("winspool.drv", CharSet=CharSet.Auto, SetLastError=true)]
-  public static extern bool ClosePrinter(IntPtr handle);
-  [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Auto)]
-  public struct DOCINFO { public string pDocName; public string pOutputFile; public string pDataType; }
-  [DllImport("winspool.drv", CharSet=CharSet.Auto, SetLastError=true)]
-  public static extern int StartDocPrinter(IntPtr handle, int level, ref DOCINFO di);
-  [DllImport("winspool.drv", SetLastError=true)]
-  public static extern bool EndDocPrinter(IntPtr handle);
-  [DllImport("winspool.drv", SetLastError=true)]
-  public static extern bool StartPagePrinter(IntPtr handle);
-  [DllImport("winspool.drv", SetLastError=true)]
-  public static extern bool EndPagePrinter(IntPtr handle);
-  [DllImport("winspool.drv", SetLastError=true)]
-  public static extern bool WritePrinter(IntPtr handle, IntPtr buf, int count, out int written);
-  public static string Print(string printer, byte[] data) {
-    IntPtr h;
-    if (!OpenPrinter(printer, out h, IntPtr.Zero))
-      return "OpenPrinter falhou — erro Win32: " + Marshal.GetLastWin32Error();
-    var di = new DOCINFO { pDocName="RAW", pOutputFile=null, pDataType="RAW" };
-    if (StartDocPrinter(h, 1, ref di) == 0) {
-      int e = Marshal.GetLastWin32Error(); ClosePrinter(h);
-      return "StartDocPrinter falhou — erro Win32: " + e;
-    }
-    if (!StartPagePrinter(h)) {
-      int e = Marshal.GetLastWin32Error(); EndDocPrinter(h); ClosePrinter(h);
-      return "StartPagePrinter falhou — erro Win32: " + e;
-    }
-    IntPtr p = Marshal.AllocCoTaskMem(data.Length);
-    Marshal.Copy(data, 0, p, data.Length);
-    int written; bool ok = WritePrinter(h, p, data.Length, out written);
-    int we = Marshal.GetLastWin32Error();
-    Marshal.FreeCoTaskMem(p);
-    EndPagePrinter(h); EndDocPrinter(h); ClosePrinter(h);
-    if (!ok) return "WritePrinter falhou — erro Win32: " + we + " bytes escritos: " + written;
-    return "ok";
-  }
-}
-"@ -Language CSharp
-$bytes = [IO.File]::ReadAllBytes('${safeBin}')
-$result = [WinSpool]::Print('${safeName}', $bytes)
-Remove-Item '${safeBin}' -ErrorAction SilentlyContinue
-Write-Host "WinSpool resultado: $result"
-if ($result -ne 'ok') { Write-Error $result; exit 1 }
-`
-
-  writeFileSync(ps1File, script, 'utf8')
-
-  return new Promise((resolve, reject) => {
-    const proc = spawn('powershell', ['-ExecutionPolicy', 'Bypass', '-NonInteractive', '-File', ps1File])
-    const errs: string[] = []
-    proc.stderr?.on('data', (d: Buffer) => errs.push(d.toString()))
-    proc.on('close', (code) => {
-      try { unlinkSync(ps1File) } catch { /* ignore */ }
-      try { unlinkSync(binFile) } catch { /* ignore */ }
-      if (code === 0) resolve()
-      else reject(new Error(`WinSpool falhou (${code}): ${errs.join('')}`))
-    })
-    proc.on('error', reject)
-  })
-}
 
 // ─── Mac CUPS raw print via lp ────────────────────────────────
 async function printViaCups(printerName: string, buf: Buffer): Promise<void> {
@@ -131,23 +48,34 @@ async function printViaCups(printerName: string, buf: Buffer): Promise<void> {
 // ─── Printer factory ──────────────────────────────────────────
 
 function makePrinter(ip: string, port: number, cols: number, ifaceOverride?: string | null) {
-  // win: and cups: modes build ESC/POS in memory — dummy TCP never connects
-  const iface = (ifaceOverride?.startsWith('win:') || ifaceOverride?.startsWith('cups:'))
+  // cups: mode builds ESC/POS in memory — dummy TCP, never connects
+  const iface = ifaceOverride?.startsWith('cups:')
     ? 'tcp://127.0.0.1:19100'
     : ifaceOverride ?? `tcp://${ip}:${port}`
-  return new ThermalPrinter.ThermalPrinter({
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const opts: any = {
     type: ThermalPrinter.types.EPSON,
     interface: iface,
     width: cols,
     characterSet: ThermalPrinter.CharacterSet.PC860_PORTUGUESE,
-  })
+  }
+
+  // printer: interface requires @thiagoelg/node-printer as driver (installed by iniciar.bat)
+  if (ifaceOverride?.startsWith('printer:')) {
+    try {
+      opts.driver = require('@thiagoelg/node-printer')
+    } catch {
+      throw new Error('Driver USB não encontrado. Feche e abra o iniciar.bat novamente para instalar.')
+    }
+  }
+
+  return new ThermalPrinter.ThermalPrinter(opts)
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function sendBuffer(iface: string | null, ip: string, port: number, printer: any): Promise<void> {
-  if (iface?.startsWith('win:')) {
-    await printViaWin(iface.slice(4), printer.getBuffer() as Buffer)
-  } else if (iface?.startsWith('cups:')) {
+  if (iface?.startsWith('cups:')) {
     await printViaCups(iface.slice(5), printer.getBuffer() as Buffer)
   } else {
     const ok = await printer.isPrinterConnected()
