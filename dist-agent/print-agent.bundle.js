@@ -9757,25 +9757,35 @@ public class WinSpool {
   public static extern bool EndPagePrinter(IntPtr handle);
   [DllImport("winspool.drv", SetLastError=true)]
   public static extern bool WritePrinter(IntPtr handle, IntPtr buf, int count, out int written);
-  public static bool Print(string printer, byte[] data) {
+  public static string Print(string printer, byte[] data) {
     IntPtr h;
-    if (!OpenPrinter(printer, out h, IntPtr.Zero)) return false;
+    if (!OpenPrinter(printer, out h, IntPtr.Zero))
+      return "OpenPrinter falhou \u2014 erro Win32: " + Marshal.GetLastWin32Error();
     var di = new DOCINFO { pDocName="RAW", pOutputFile=null, pDataType="RAW" };
-    if (StartDocPrinter(h, 1, ref di) == 0) { ClosePrinter(h); return false; }
-    StartPagePrinter(h);
+    if (StartDocPrinter(h, 1, ref di) == 0) {
+      int e = Marshal.GetLastWin32Error(); ClosePrinter(h);
+      return "StartDocPrinter falhou \u2014 erro Win32: " + e;
+    }
+    if (!StartPagePrinter(h)) {
+      int e = Marshal.GetLastWin32Error(); EndDocPrinter(h); ClosePrinter(h);
+      return "StartPagePrinter falhou \u2014 erro Win32: " + e;
+    }
     IntPtr p = Marshal.AllocCoTaskMem(data.Length);
     Marshal.Copy(data, 0, p, data.Length);
     int written; bool ok = WritePrinter(h, p, data.Length, out written);
+    int we = Marshal.GetLastWin32Error();
     Marshal.FreeCoTaskMem(p);
     EndPagePrinter(h); EndDocPrinter(h); ClosePrinter(h);
-    return ok;
+    if (!ok) return "WritePrinter falhou \u2014 erro Win32: " + we + " bytes escritos: " + written;
+    return "ok";
   }
 }
 "@ -Language CSharp
 $bytes = [IO.File]::ReadAllBytes('${safeBin}')
-$ok = [WinSpool]::Print('${safeName}', $bytes)
+$result = [WinSpool]::Print('${safeName}', $bytes)
 Remove-Item '${safeBin}' -ErrorAction SilentlyContinue
-if (-not $ok) { Write-Error "WinSpool::Print retornou false"; exit 1 }
+Write-Host "WinSpool resultado: $result"
+if ($result -ne 'ok') { Write-Error $result; exit 1 }
 `;
   (0, import_node_fs.writeFileSync)(ps1File, script, "utf8");
   return new Promise((resolve, reject) => {
