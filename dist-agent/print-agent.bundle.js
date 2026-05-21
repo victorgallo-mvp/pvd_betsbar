@@ -9737,106 +9737,38 @@ async function printViaCups(printerName, buf) {
     proc.on("error", reject);
   });
 }
-function buildWinPs(tmpFile, printerName) {
-  const escaped = tmpFile.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-  const escapedName = printerName.replace(/'/g, "\\'");
-  return `
-$ErrorActionPreference = 'Stop'
-$file = '${escaped}'
-$printer = '${escapedName}'
-$bytes = [System.IO.File]::ReadAllBytes($file)
-$ms = New-Object System.IO.MemoryStream(,$bytes)
-$pd = New-Object System.Drawing.Printing.PrintDocument
-$pd.PrinterSettings.PrinterName = $printer
-$pd.PrinterSettings.DefaultPageSettings.PaperSize = New-Object System.Drawing.Printing.PaperSize('Custom', 1, 1)
-$pd.DefaultPageSettings.Margins = New-Object System.Drawing.Printing.Margins(0,0,0,0)
-Add-Type -AssemblyName System.Drawing
-$src = @'
-using System;
-using System.Drawing.Printing;
-using System.Runtime.InteropServices;
-public class RawPrint {
-  [DllImport("winspool.Drv", EntryPoint="OpenPrinterA", SetLastError=true, CharSet=CharSet.Ansi)]
-  public static extern bool OpenPrinter(string szPrinter, out IntPtr hPrinter, IntPtr pd);
-  [DllImport("winspool.Drv", EntryPoint="ClosePrinter", SetLastError=true)]
-  public static extern bool ClosePrinter(IntPtr hPrinter);
-  [DllImport("winspool.Drv", EntryPoint="StartDocPrinterA", SetLastError=true, CharSet=CharSet.Ansi)]
-  public static extern bool StartDocPrinter(IntPtr hPrinter, Int32 level, [In, MarshalAs(UnmanagedType.LPStruct)] DOCINFOA di);
-  [DllImport("winspool.Drv", EntryPoint="EndDocPrinter", SetLastError=true)]
-  public static extern bool EndDocPrinter(IntPtr hPrinter);
-  [DllImport("winspool.Drv", EntryPoint="StartPagePrinter", SetLastError=true)]
-  public static extern bool StartPagePrinter(IntPtr hPrinter);
-  [DllImport("winspool.Drv", EntryPoint="EndPagePrinter", SetLastError=true)]
-  public static extern bool EndPagePrinter(IntPtr hPrinter);
-  [DllImport("winspool.Drv", EntryPoint="WritePrinter", SetLastError=true)]
-  public static extern bool WritePrinter(IntPtr hPrinter, IntPtr pBytes, Int32 dwCount, out Int32 dwWritten);
-  [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Ansi)]
-  public class DOCINFOA {
-    [MarshalAs(UnmanagedType.LPStr)] public string pDocName;
-    [MarshalAs(UnmanagedType.LPStr)] public string pOutputFile;
-    [MarshalAs(UnmanagedType.LPStr)] public string pDataType;
-  }
-  public static bool Send(string printerName, byte[] pBytes) {
-    IntPtr hPrinter = new IntPtr(0);
-    DOCINFOA di = new DOCINFOA(); di.pDocName = "PDV"; di.pDataType = "RAW";
-    bool bSuccess = false;
-    if (OpenPrinter(printerName.Normalize(), out hPrinter, IntPtr.Zero)) {
-      if (StartDocPrinter(hPrinter, 1, di)) {
-        if (StartPagePrinter(hPrinter)) {
-          IntPtr pUnmanagedBytes = Marshal.AllocCoTaskMem(pBytes.Length);
-          Marshal.Copy(pBytes, 0, pUnmanagedBytes, pBytes.Length);
-          Int32 dwWritten = 0;
-          bSuccess = WritePrinter(hPrinter, pUnmanagedBytes, pBytes.Length, out dwWritten);
-          Marshal.FreeCoTaskMem(pUnmanagedBytes);
-          EndPagePrinter(hPrinter);
-        }
-        EndDocPrinter(hPrinter);
-      }
-      ClosePrinter(hPrinter);
-    }
-    return bSuccess;
-  }
+function buildWinCmd(tmpFile) {
+  return `copy /b "${tmpFile}" USB001 && del "${tmpFile}"`;
 }
-'@
-Add-Type -TypeDefinition $src -Language CSharp
-$result = [RawPrint]::Send($printer, $bytes)
-Write-Host "WritePrinter result: $result"
-Remove-Item -Force $file -ErrorAction SilentlyContinue
-`;
-}
-async function printViaWindows(printerName, buf) {
+async function printViaWindows(_printerName, buf) {
   const tempDir = process.env.TEMP ?? process.env.TMP ?? "C:\\Windows\\Temp";
   const tmpFile = (0, import_node_path.join)(tempDir, `escpos_${Date.now()}.bin`);
-  console.log(`[agent] USB: tempDir=${tempDir} arquivo=${tmpFile} bytes=${buf.length}`);
+  console.log(`[agent] USB: gravando ${buf.length} bytes em ${tmpFile}`);
   try {
     (0, import_node_fs.writeFileSync)(tmpFile, buf);
-    console.log(`[agent] USB: arquivo gravado OK`);
   } catch (err) {
     throw new Error(`Falha ao gravar arquivo temp: ${err.message}`);
   }
+  const cmd = buildWinCmd(tmpFile);
+  console.log(`[agent] USB: executando: ${cmd}`);
   return new Promise((resolve, reject) => {
-    const ps = buildWinPs(tmpFile, printerName);
-    const proc = (0, import_node_child_process.spawn)("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", "-"]);
-    let stderr = "";
-    let stdout = "";
-    proc.stderr.on("data", (d) => {
-      stderr += d.toString();
-    });
+    const proc = (0, import_node_child_process.spawn)("cmd.exe", ["/c", cmd]);
+    let output = "";
     proc.stdout.on("data", (d) => {
-      stdout += d.toString();
+      output += d.toString();
     });
-    proc.stdin.write(ps);
-    proc.stdin.end();
+    proc.stderr.on("data", (d) => {
+      output += d.toString();
+    });
     proc.on("close", (code) => {
       try {
         (0, import_node_fs.unlinkSync)(tmpFile);
       } catch {
       }
-      if (stdout.trim()) console.log(`[agent] PS stdout: ${stdout.trim()}`);
-      if (stderr.trim()) console.log(`[agent] PS stderr: ${stderr.trim()}`);
-      console.log(`[agent] PS exit: ${code}`);
+      if (output.trim()) console.log(`[agent] USB cmd: ${output.trim()}`);
+      console.log(`[agent] USB exit: ${code}`);
       if (code === 0) resolve();
-      else reject(new Error(`PowerShell saiu com c\xF3digo ${code}: ${stderr.trim()}`));
+      else reject(new Error(`copy /b falhou (c\xF3digo ${code}): ${output.trim()}`));
     });
     proc.on("error", (err) => {
       try {
