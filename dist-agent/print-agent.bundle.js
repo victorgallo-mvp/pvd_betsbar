@@ -9738,41 +9738,70 @@ async function printViaCups(printerName, buf) {
   });
 }
 function buildWinPs(tmpFile, printerName) {
-  const escaped = tmpFile.replace(/'/g, "''");
-  const escapedName = printerName.replace(/'/g, "''");
+  const escaped = tmpFile.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  const escapedName = printerName.replace(/'/g, "\\'");
   return `
 $ErrorActionPreference = 'Stop'
-$bytes = [System.IO.File]::ReadAllBytes('${escaped}')
+$file = '${escaped}'
+$printer = '${escapedName}'
+$bytes = [System.IO.File]::ReadAllBytes($file)
+$ms = New-Object System.IO.MemoryStream(,$bytes)
+$pd = New-Object System.Drawing.Printing.PrintDocument
+$pd.PrinterSettings.PrinterName = $printer
+$pd.PrinterSettings.DefaultPageSettings.PaperSize = New-Object System.Drawing.Printing.PaperSize('Custom', 1, 1)
+$pd.DefaultPageSettings.Margins = New-Object System.Drawing.Printing.Margins(0,0,0,0)
+Add-Type -AssemblyName System.Drawing
 $src = @'
 using System;
+using System.Drawing.Printing;
 using System.Runtime.InteropServices;
-public static class RawPrinter {
-  [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)]
-  public struct DOCINFO { public string pDocName; public string pOutputFile; public string pDataType; }
-  [DllImport("winspool.drv", CharSet=CharSet.Unicode, SetLastError=true)] public static extern bool OpenPrinter(string src, out IntPtr h, IntPtr d);
-  [DllImport("winspool.drv", SetLastError=true)] public static extern bool ClosePrinter(IntPtr h);
-  [DllImport("winspool.drv", CharSet=CharSet.Unicode, SetLastError=true)] public static extern bool StartDocPrinter(IntPtr h, int level, ref DOCINFO di);
-  [DllImport("winspool.drv", SetLastError=true)] public static extern bool EndDocPrinter(IntPtr h);
-  [DllImport("winspool.drv", SetLastError=true)] public static extern bool StartPagePrinter(IntPtr h);
-  [DllImport("winspool.drv", SetLastError=true)] public static extern bool EndPagePrinter(IntPtr h);
-  [DllImport("winspool.drv", SetLastError=true)] public static extern bool WritePrinter(IntPtr h, byte[] buf, int len, out int written);
-  public static void Send(string printer, byte[] data) {
-    IntPtr h;
-    if (!OpenPrinter(printer, out h, IntPtr.Zero)) throw new Exception("OpenPrinter falhou: " + Marshal.GetLastWin32Error());
-    try {
-      DOCINFO di = new DOCINFO(); di.pDocName = "Betsbar PDV"; di.pDataType = "RAW";
-      if (!StartDocPrinter(h, 1, ref di)) throw new Exception("StartDocPrinter falhou: " + Marshal.GetLastWin32Error());
-      StartPagePrinter(h);
-      int written;
-      WritePrinter(h, data, data.Length, out written);
-      EndPagePrinter(h); EndDocPrinter(h);
-    } finally { ClosePrinter(h); }
+public class RawPrint {
+  [DllImport("winspool.Drv", EntryPoint="OpenPrinterA", SetLastError=true, CharSet=CharSet.Ansi)]
+  public static extern bool OpenPrinter(string szPrinter, out IntPtr hPrinter, IntPtr pd);
+  [DllImport("winspool.Drv", EntryPoint="ClosePrinter", SetLastError=true)]
+  public static extern bool ClosePrinter(IntPtr hPrinter);
+  [DllImport("winspool.Drv", EntryPoint="StartDocPrinterA", SetLastError=true, CharSet=CharSet.Ansi)]
+  public static extern bool StartDocPrinter(IntPtr hPrinter, Int32 level, [In, MarshalAs(UnmanagedType.LPStruct)] DOCINFOA di);
+  [DllImport("winspool.Drv", EntryPoint="EndDocPrinter", SetLastError=true)]
+  public static extern bool EndDocPrinter(IntPtr hPrinter);
+  [DllImport("winspool.Drv", EntryPoint="StartPagePrinter", SetLastError=true)]
+  public static extern bool StartPagePrinter(IntPtr hPrinter);
+  [DllImport("winspool.Drv", EntryPoint="EndPagePrinter", SetLastError=true)]
+  public static extern bool EndPagePrinter(IntPtr hPrinter);
+  [DllImport("winspool.Drv", EntryPoint="WritePrinter", SetLastError=true)]
+  public static extern bool WritePrinter(IntPtr hPrinter, IntPtr pBytes, Int32 dwCount, out Int32 dwWritten);
+  [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Ansi)]
+  public class DOCINFOA {
+    [MarshalAs(UnmanagedType.LPStr)] public string pDocName;
+    [MarshalAs(UnmanagedType.LPStr)] public string pOutputFile;
+    [MarshalAs(UnmanagedType.LPStr)] public string pDataType;
+  }
+  public static bool Send(string printerName, byte[] pBytes) {
+    IntPtr hPrinter = new IntPtr(0);
+    DOCINFOA di = new DOCINFOA(); di.pDocName = "PDV"; di.pDataType = "RAW";
+    bool bSuccess = false;
+    if (OpenPrinter(printerName.Normalize(), out hPrinter, IntPtr.Zero)) {
+      if (StartDocPrinter(hPrinter, 1, di)) {
+        if (StartPagePrinter(hPrinter)) {
+          IntPtr pUnmanagedBytes = Marshal.AllocCoTaskMem(pBytes.Length);
+          Marshal.Copy(pBytes, 0, pUnmanagedBytes, pBytes.Length);
+          Int32 dwWritten = 0;
+          bSuccess = WritePrinter(hPrinter, pUnmanagedBytes, pBytes.Length, out dwWritten);
+          Marshal.FreeCoTaskMem(pUnmanagedBytes);
+          EndPagePrinter(hPrinter);
+        }
+        EndDocPrinter(hPrinter);
+      }
+      ClosePrinter(hPrinter);
+    }
+    return bSuccess;
   }
 }
 '@
 Add-Type -TypeDefinition $src -Language CSharp
-[RawPrinter]::Send('${escapedName}', $bytes)
-Remove-Item -Force '${escaped}'
+$result = [RawPrint]::Send($printer, $bytes)
+Write-Host "WritePrinter result: $result"
+Remove-Item -Force $file -ErrorAction SilentlyContinue
 `;
 }
 async function printViaWindows(printerName, buf) {
