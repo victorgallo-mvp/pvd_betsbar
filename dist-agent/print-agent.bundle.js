@@ -9737,10 +9737,10 @@ async function printViaCups(printerName, buf) {
     proc.on("error", reject);
   });
 }
-function buildWinCmd(tmpFile) {
-  return `copy /b "${tmpFile}" USB001 && del "${tmpFile}"`;
+function buildWinCmd(tmpFile, printerName) {
+  return `copy /b "${tmpFile}" "\\\\localhost\\${printerName}" && del "${tmpFile}"`;
 }
-async function printViaWindows(_printerName, buf) {
+async function printViaWindows(printerName, buf) {
   const tempDir = process.env.TEMP ?? process.env.TMP ?? "C:\\Windows\\Temp";
   const tmpFile = (0, import_node_path.join)(tempDir, `escpos_${Date.now()}.bin`);
   console.log(`[agent] USB: gravando ${buf.length} bytes em ${tmpFile}`);
@@ -9749,7 +9749,7 @@ async function printViaWindows(_printerName, buf) {
   } catch (err) {
     throw new Error(`Falha ao gravar arquivo temp: ${err.message}`);
   }
-  const cmd = buildWinCmd(tmpFile);
+  const cmd = buildWinCmd(tmpFile, printerName);
   console.log(`[agent] USB: executando: ${cmd}`);
   return new Promise((resolve, reject) => {
     const proc = (0, import_node_child_process.spawn)("cmd.exe", ["/c", cmd]);
