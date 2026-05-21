@@ -106,7 +106,8 @@ function makePrinter(ip: string, port: number, cols: number, ifaceOverride?: str
   })
 }
 
-async function sendBuffer(iface: string | null, ip: string, port: number, printer: typeof ThermalPrinter): Promise<void> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function sendBuffer(iface: string | null, ip: string, port: number, printer: any): Promise<void> {
   if (iface?.startsWith('win:')) {
     await printViaWin(iface.slice(4), printer.getBuffer() as Buffer)
   } else if (iface?.startsWith('cups:')) {
