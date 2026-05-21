@@ -1,57 +1,125 @@
 /**
- * Local Print Agent
- *
- * Runs on the restaurant machine (not on Railway).
- * Polls the Railway API for pending print jobs and sends them to the
- * local thermal printer via TCP.
- *
- * Usage:
- *   RAILWAY_API_URL=https://...up.railway.app \
- *   PRINTER_IP=192.168.1.xxx \
- *   pnpm --filter api run agent
+ * Local Print Agent — Betsbar PDV
  *
  * Optional env vars:
- *   PRINTER_PORT        — default 9100 (ignorado se PRINTER_INTERFACE definido)
+ *   RAILWAY_API_URL     — API endpoint (default: http://localhost:3000)
+ *   PRINTER_INTERFACE   — win:NomeDaImpressora  (Windows USB via PowerShell)
+ *                         cups:NomeDaImpressora (Mac USB via CUPS)
+ *                         tcp://IP:PORT         (rede)
+ *   PRINTER_IP          — fallback TCP IP
+ *   PRINTER_PORT        — fallback TCP port (default 9100)
  *   PRINTER_WIDTH       — 58 or 80 (default 80)
- *   PRINTER_INTERFACE   — sobrescreve interface diretamente, ex: "printer:POS-80" (USB no Windows)
- *   KITCHEN_PRINTER_IP  — se diferente de PRINTER_IP
- *   KITCHEN_PRINTER_PORT— default 9100
- *   KITCHEN_INTERFACE   — sobrescreve interface da cozinha
- *   POLL_MS             — polling interval in ms (default 5000)
+ *   KITCHEN_PRINTER_IP  — cozinha TCP IP
+ *   KITCHEN_PRINTER_PORT— cozinha TCP port (default 9100)
+ *   POLL_MS             — polling interval ms (default 5000)
  */
 
 // @ts-ignore
 import ThermalPrinter from 'node-thermal-printer'
+import { spawn } from 'node:child_process'
+import { writeFileSync, unlinkSync } from 'node:fs'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 
-const API_URL          = (process.env.RAILWAY_API_URL ?? 'http://localhost:3000').replace(/\/$/, '')
-const PRINTER_WIDTH    = Number(process.env.PRINTER_WIDTH ?? 80) as 58 | 80
-const POLL_MS          = Number(process.env.POLL_MS ?? 5000)
-// Quando definido, usa a string de interface diretamente em vez de TCP (ex: "printer:POS-80")
-const PRINTER_IFACE    = process.env.PRINTER_INTERFACE ?? null
-const KITCHEN_IFACE    = process.env.KITCHEN_INTERFACE ?? null
+const API_URL       = (process.env.RAILWAY_API_URL ?? 'http://localhost:3000').replace(/\/$/, '')
+const PRINTER_WIDTH = Number(process.env.PRINTER_WIDTH ?? 80) as 58 | 80
+const POLL_MS       = Number(process.env.POLL_MS ?? 5000)
+const PRINTER_IFACE = process.env.PRINTER_INTERFACE ?? null
+const KITCHEN_IFACE = process.env.KITCHEN_INTERFACE ?? null
 
-// IPs podem vir de env vars (prioridade) ou da config da API (carregada no init)
-let PRINTER_IP    = process.env.PRINTER_IP ?? ''
-let PRINTER_PORT  = Number(process.env.PRINTER_PORT ?? 9100)
-let KITCHEN_IP    = process.env.KITCHEN_PRINTER_IP ?? ''
-let KITCHEN_PORT  = Number(process.env.KITCHEN_PRINTER_PORT ?? 9100)
+let PRINTER_IP   = process.env.PRINTER_IP ?? ''
+let PRINTER_PORT = Number(process.env.PRINTER_PORT ?? 9100)
+let KITCHEN_IP   = process.env.KITCHEN_PRINTER_IP ?? ''
+let KITCHEN_PORT = Number(process.env.KITCHEN_PRINTER_PORT ?? 9100)
 
 const CHAR_COLS = PRINTER_WIDTH === 58 ? 32 : 48
 
 function fmt(n: number) { return `R$ ${n.toFixed(2).replace('.', ',')}` }
 
-// ─── Printer helpers ──────────────────────────────────────────
+// ─── Windows raw print via PowerShell ─────────────────────────
+// Reads the USB port name from WMI and writes ESC/POS bytes directly,
+// no native Node modules required.
+async function printViaWin(printerName: string, buf: Buffer): Promise<void> {
+  const ts      = Date.now()
+  const binFile = join(tmpdir(), `pvd_${ts}.bin`)
+  const ps1File = join(tmpdir(), `pvd_${ts}.ps1`)
+
+  writeFileSync(binFile, buf)
+
+  // Escape single quotes in printer name
+  const safeName = printerName.replace(/'/g, "''")
+  const safeBin  = binFile.replace(/\\/g, '\\\\')
+
+  const script = `
+$name = '${safeName}'
+$bin  = '${safeBin}'
+$p    = Get-WmiObject Win32_Printer | Where-Object { $_.Name -eq $name } | Select-Object -First 1
+if (-not $p) { Write-Error "Impressora nao encontrada: $name"; exit 1 }
+$port = $p.PortName
+$bytes = [IO.File]::ReadAllBytes($bin)
+$stream = [IO.File]::Open("\\\\.\\" + $port, [IO.FileMode]::Open, [IO.FileAccess]::Write, [IO.FileShare]::ReadWrite)
+$stream.Write($bytes, 0, $bytes.Length)
+$stream.Flush()
+$stream.Close()
+Remove-Item $bin -ErrorAction SilentlyContinue
+`
+
+  writeFileSync(ps1File, script, 'utf8')
+
+  return new Promise((resolve, reject) => {
+    const proc = spawn('powershell', ['-ExecutionPolicy', 'Bypass', '-NonInteractive', '-File', ps1File])
+    const errs: string[] = []
+    proc.stderr?.on('data', (d: Buffer) => errs.push(d.toString()))
+    proc.on('close', (code) => {
+      try { unlinkSync(ps1File) } catch { /* ignore */ }
+      try { unlinkSync(binFile) } catch { /* ignore */ }
+      if (code === 0) resolve()
+      else reject(new Error(`PowerShell print falhou (${code}): ${errs.join('')}`))
+    })
+    proc.on('error', reject)
+  })
+}
+
+// ─── Mac CUPS raw print via lp ────────────────────────────────
+async function printViaCups(printerName: string, buf: Buffer): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn('lp', ['-d', printerName, '-o', 'raw', '-'])
+    proc.stdin.write(buf)
+    proc.stdin.end()
+    proc.on('close', (code) => code === 0 ? resolve() : reject(new Error(`lp saiu com código ${code}`)))
+    proc.on('error', reject)
+  })
+}
+
+// ─── Printer factory ──────────────────────────────────────────
 
 function makePrinter(ip: string, port: number, cols: number, ifaceOverride?: string | null) {
+  // win: and cups: modes build ESC/POS in memory — dummy TCP never connects
+  const iface = (ifaceOverride?.startsWith('win:') || ifaceOverride?.startsWith('cups:'))
+    ? 'tcp://127.0.0.1:19100'
+    : ifaceOverride ?? `tcp://${ip}:${port}`
   return new ThermalPrinter.ThermalPrinter({
     type: ThermalPrinter.types.EPSON,
-    interface: ifaceOverride ?? `tcp://${ip}:${port}`,
+    interface: iface,
     width: cols,
     characterSet: ThermalPrinter.CharacterSet.PC860_PORTUGUESE,
   })
 }
 
-// ─── Receipt / fiche print ────────────────────────────────────
+async function sendBuffer(iface: string | null, ip: string, port: number, printer: typeof ThermalPrinter): Promise<void> {
+  if (iface?.startsWith('win:')) {
+    await printViaWin(iface.slice(4), printer.getBuffer() as Buffer)
+  } else if (iface?.startsWith('cups:')) {
+    await printViaCups(iface.slice(5), printer.getBuffer() as Buffer)
+  } else {
+    const ok = await printer.isPrinterConnected()
+    if (!ok) throw new Error(`Impressora offline: ${iface ?? `${ip}:${port}`}`)
+    await printer.execute()
+  }
+  printer.clear()
+}
+
+// ─── Payloads ─────────────────────────────────────────────────
 
 interface PrintPayload {
   saleType: string
@@ -68,16 +136,23 @@ interface PrintPayload {
   troco: number
 }
 
+interface KitchenPayload {
+  tableNumber: number | null
+  saleType: string
+  operatorName: string
+  printedAt: string
+  items: { qty: number; name: string; notes: string | null }[]
+}
+
 const METHOD_LABELS: Record<string, string> = {
   cash: 'Dinheiro', debit: 'Cartao Debito', credit: 'Cartao Credito',
   pix: 'Pix', voucher: 'Voucher', conta_receita: 'Conta Receita',
 }
 
+// ─── Receipt ──────────────────────────────────────────────────
+
 async function printReceipt(payload: PrintPayload): Promise<void> {
   const printer = makePrinter(PRINTER_IP, PRINTER_PORT, CHAR_COLS, PRINTER_IFACE)
-
-  const isConnected = await printer.isPrinterConnected()
-  if (!isConnected) throw new Error(`Impressora offline: ${PRINTER_IFACE ?? `${PRINTER_IP}:${PRINTER_PORT}`}`)
 
   printer.alignCenter()
   printer.setTextDoubleHeight()
@@ -102,9 +177,7 @@ async function printReceipt(payload: PrintPayload): Promise<void> {
   }
   printer.drawLine()
 
-  if (payload.discount > 0) {
-    printer.leftRight('Desconto', `-${fmt(payload.discount)}`)
-  }
+  if (payload.discount > 0) printer.leftRight('Desconto', `-${fmt(payload.discount)}`)
   printer.bold(true)
   printer.leftRight('TOTAL', fmt(payload.total))
   printer.bold(false)
@@ -124,19 +197,11 @@ async function printReceipt(payload: PrintPayload): Promise<void> {
   printer.println('Obrigado pela visita!')
   printer.newLine()
   printer.cut()
-  await printer.execute()
-  printer.clear()
+
+  await sendBuffer(PRINTER_IFACE, PRINTER_IP, PRINTER_PORT, printer)
 }
 
-// ─── Kitchen comanda print ────────────────────────────────────
-
-interface KitchenPayload {
-  tableNumber: number | null
-  saleType: string
-  operatorName: string
-  printedAt: string
-  items: { qty: number; name: string; notes: string | null }[]
-}
+// ─── Kitchen comanda ──────────────────────────────────────────
 
 async function printKitchen(payload: KitchenPayload): Promise<void> {
   const printer = makePrinter(KITCHEN_IP, KITCHEN_PORT, 48, KITCHEN_IFACE)
@@ -148,9 +213,7 @@ async function printKitchen(payload: KitchenPayload): Promise<void> {
     ? `Mesa: ${payload.tableNumber}`
     : payload.saleType === 'counter' ? 'Balcao' : 'Delivery'
 
-  const time = new Date(payload.printedAt).toLocaleTimeString('pt-BR', {
-    hour: '2-digit', minute: '2-digit',
-  })
+  const time = new Date(payload.printedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 
   printer.alignCenter()
   printer.setTextDoubleHeight()
@@ -183,14 +246,9 @@ async function printKitchen(payload: KitchenPayload): Promise<void> {
   printer.clear()
 }
 
-// ─── Polling loop ─────────────────────────────────────────────
+// ─── Polling ──────────────────────────────────────────────────
 
-interface PrintJob {
-  id: string
-  type: string
-  payload: string
-  status: string
-}
+interface PrintJob { id: string; type: string; payload: string; status: string }
 
 async function fetchPending(): Promise<PrintJob[]> {
   const res = await fetch(`${API_URL}/print/pending`)
@@ -206,32 +264,21 @@ async function markJob(jobId: string, action: 'printed' | 'skipped') {
   })
 }
 
-async function processJob(job: PrintJob): Promise<void> {
-  const payload = JSON.parse(job.payload)
-  if (job.type === 'kitchen') {
-    await printKitchen(payload as KitchenPayload)
-  } else {
-    await printReceipt(payload as PrintPayload)
-  }
-}
-
 async function poll(): Promise<void> {
   let jobs: PrintJob[]
-  try {
-    jobs = await fetchPending()
-  } catch (err) {
+  try { jobs = await fetchPending() } catch (err) {
     console.error('[agent] Erro ao buscar jobs:', (err as Error).message)
     return
   }
-
   for (const job of jobs) {
     try {
-      await processJob(job)
+      await (job.type === 'kitchen'
+        ? printKitchen(JSON.parse(job.payload) as KitchenPayload)
+        : printReceipt(JSON.parse(job.payload) as PrintPayload))
       await markJob(job.id, 'printed')
       console.log(`[agent] ✓ Job ${job.id} (${job.type}) impresso`)
     } catch (err) {
       console.error(`[agent] ✗ Job ${job.id} falhou:`, (err as Error).message)
-      // deixa pendente para tentar no próximo ciclo
     }
   }
 }
@@ -243,10 +290,7 @@ async function loadRemoteConfig() {
   try {
     const res = await fetch(`${API_URL}/config`)
     if (!res.ok) return
-    const cfg = await res.json() as {
-      printer: { ip: string; port: number }
-      kitchenPrinter: { ip: string; port: number }
-    }
+    const cfg = await res.json() as { printer: { ip: string; port: number }; kitchenPrinter: { ip: string; port: number } }
     if (!process.env.PRINTER_IP && cfg.printer?.ip) {
       PRINTER_IP = cfg.printer.ip
       if (!process.env.PRINTER_PORT) PRINTER_PORT = cfg.printer.port || 9100
@@ -257,7 +301,7 @@ async function loadRemoteConfig() {
     }
     console.log('[agent] Config carregada da API')
   } catch (err) {
-    console.warn('[agent] Config remota indisponível, usando env vars:', (err as Error).message)
+    console.warn('[agent] Config remota indisponível:', (err as Error).message)
   }
   if (!KITCHEN_IP) KITCHEN_IP = PRINTER_IP
 }
@@ -265,8 +309,12 @@ async function loadRemoteConfig() {
 async function start() {
   await loadRemoteConfig()
 
+  const balcaoLabel = PRINTER_IFACE?.startsWith('win:')  ? `Windows USB (${PRINTER_IFACE.slice(4)})`
+                    : PRINTER_IFACE?.startsWith('cups:') ? `Mac CUPS (${PRINTER_IFACE.slice(5)})`
+                    : PRINTER_IFACE ?? `${PRINTER_IP}:${PRINTER_PORT}`
+
   console.log(`[agent] Iniciado — API: ${API_URL}`)
-  console.log(`[agent] Impressora balcão:  ${PRINTER_IFACE ?? `${PRINTER_IP}:${PRINTER_PORT}`}`)
+  console.log(`[agent] Impressora balcão:  ${balcaoLabel}`)
   console.log(`[agent] Impressora cozinha: ${KITCHEN_IFACE ?? `${KITCHEN_IP}:${KITCHEN_PORT}`}`)
   console.log(`[agent] Polling a cada ${POLL_MS}ms\n`)
 

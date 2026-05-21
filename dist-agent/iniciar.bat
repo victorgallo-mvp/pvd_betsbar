@@ -6,10 +6,9 @@
 
 set RAILWAY_API_URL=https://radiant-success-production-f5e3.up.railway.app
 
-:: ── IMPRESSORA BALCAO (USB via porta TCP local) ─────────────
-:: Configurar porta TCP 127.0.0.1:9100 na impressora USB — veja README
-set PRINTER_IP=127.0.0.1
-set PRINTER_PORT=9100
+:: ── IMPRESSORA BALCAO (USB via PowerShell) ──────────────────
+:: Nome exato conforme aparece em: Painel de Controle > Dispositivos e Impressoras
+set PRINTER_INTERFACE=win:Balcao
 set PRINTER_WIDTH=80
 
 :: ── IMPRESSORA COZINHA (rede TCP/IP) ────────────────────────
@@ -19,5 +18,5 @@ set KITCHEN_PRINTER_PORT=9100
 :: Intervalo de polling em ms (padrao: 5000)
 :: set POLL_MS=5000
 
-print-agent.exe
+node print-agent.bundle.js
 pause

@@ -1198,7 +1198,7 @@ var require_bitpacker = __commonJS({
         options.colorType
       ) !== -1;
       if (options.colorType === options.inputColorType) {
-        let bigEndian = function() {
+        let bigEndian = (function() {
           let buffer = new ArrayBuffer(2);
           new DataView(buffer).setInt16(
             0,
@@ -1207,7 +1207,7 @@ var require_bitpacker = __commonJS({
             /* littleEndian */
           );
           return new Int16Array(buffer)[0] !== 256;
-        }();
+        })();
         if (options.bitDepth === 8 || options.bitDepth === 16 && bigEndian) {
           return dataIn;
         }
@@ -9712,26 +9712,92 @@ var require_node_thermal_printer = __commonJS({
 
 // apps/api/src/print-agent.ts
 var import_node_thermal_printer = __toESM(require_node_thermal_printer(), 1);
+var import_node_child_process = require("node:child_process");
+var import_node_fs = require("node:fs");
+var import_node_path = require("node:path");
+var import_node_os = require("node:os");
 var API_URL = (process.env.RAILWAY_API_URL ?? "http://localhost:3000").replace(/\/$/, "");
-var PRINTER_IP = process.env.PRINTER_IP ?? "127.0.0.1";
-var PRINTER_PORT = Number(process.env.PRINTER_PORT ?? 9100);
 var PRINTER_WIDTH = Number(process.env.PRINTER_WIDTH ?? 80);
-var KITCHEN_IP = process.env.KITCHEN_PRINTER_IP ?? "192.168.2.122";
-var KITCHEN_PORT = Number(process.env.KITCHEN_PRINTER_PORT ?? 9100);
 var POLL_MS = Number(process.env.POLL_MS ?? 5e3);
 var PRINTER_IFACE = process.env.PRINTER_INTERFACE ?? null;
 var KITCHEN_IFACE = process.env.KITCHEN_INTERFACE ?? null;
+var PRINTER_IP = process.env.PRINTER_IP ?? "";
+var PRINTER_PORT = Number(process.env.PRINTER_PORT ?? 9100);
+var KITCHEN_IP = process.env.KITCHEN_PRINTER_IP ?? "";
+var KITCHEN_PORT = Number(process.env.KITCHEN_PRINTER_PORT ?? 9100);
 var CHAR_COLS = PRINTER_WIDTH === 58 ? 32 : 48;
 function fmt(n) {
   return `R$ ${n.toFixed(2).replace(".", ",")}`;
 }
+async function printViaWin(printerName, buf) {
+  const ts = Date.now();
+  const binFile = (0, import_node_path.join)((0, import_node_os.tmpdir)(), `pvd_${ts}.bin`);
+  const ps1File = (0, import_node_path.join)((0, import_node_os.tmpdir)(), `pvd_${ts}.ps1`);
+  (0, import_node_fs.writeFileSync)(binFile, buf);
+  const safeName = printerName.replace(/'/g, "''");
+  const safeBin = binFile.replace(/\\/g, "\\\\");
+  const script = `
+$name = '${safeName}'
+$bin  = '${safeBin}'
+$p    = Get-WmiObject Win32_Printer | Where-Object { $_.Name -eq $name } | Select-Object -First 1
+if (-not $p) { Write-Error "Impressora nao encontrada: $name"; exit 1 }
+$port = $p.PortName
+$bytes = [IO.File]::ReadAllBytes($bin)
+$stream = [IO.File]::Open("\\\\.\\" + $port, [IO.FileMode]::Open, [IO.FileAccess]::Write, [IO.FileShare]::ReadWrite)
+$stream.Write($bytes, 0, $bytes.Length)
+$stream.Flush()
+$stream.Close()
+Remove-Item $bin -ErrorAction SilentlyContinue
+`;
+  (0, import_node_fs.writeFileSync)(ps1File, script, "utf8");
+  return new Promise((resolve, reject) => {
+    const proc = (0, import_node_child_process.spawn)("powershell", ["-ExecutionPolicy", "Bypass", "-NonInteractive", "-File", ps1File]);
+    const errs = [];
+    proc.stderr?.on("data", (d) => errs.push(d.toString()));
+    proc.on("close", (code) => {
+      try {
+        (0, import_node_fs.unlinkSync)(ps1File);
+      } catch {
+      }
+      try {
+        (0, import_node_fs.unlinkSync)(binFile);
+      } catch {
+      }
+      if (code === 0) resolve();
+      else reject(new Error(`PowerShell print falhou (${code}): ${errs.join("")}`));
+    });
+    proc.on("error", reject);
+  });
+}
+async function printViaCups(printerName, buf) {
+  return new Promise((resolve, reject) => {
+    const proc = (0, import_node_child_process.spawn)("lp", ["-d", printerName, "-o", "raw", "-"]);
+    proc.stdin.write(buf);
+    proc.stdin.end();
+    proc.on("close", (code) => code === 0 ? resolve() : reject(new Error(`lp saiu com c\xF3digo ${code}`)));
+    proc.on("error", reject);
+  });
+}
 function makePrinter(ip, port, cols, ifaceOverride) {
+  const iface = ifaceOverride?.startsWith("win:") || ifaceOverride?.startsWith("cups:") ? "tcp://127.0.0.1:19100" : ifaceOverride ?? `tcp://${ip}:${port}`;
   return new import_node_thermal_printer.default.ThermalPrinter({
     type: import_node_thermal_printer.default.types.EPSON,
-    interface: ifaceOverride ?? `tcp://${ip}:${port}`,
+    interface: iface,
     width: cols,
     characterSet: import_node_thermal_printer.default.CharacterSet.PC860_PORTUGUESE
   });
+}
+async function sendBuffer(iface, ip, port, printer) {
+  if (iface?.startsWith("win:")) {
+    await printViaWin(iface.slice(4), printer.getBuffer());
+  } else if (iface?.startsWith("cups:")) {
+    await printViaCups(iface.slice(5), printer.getBuffer());
+  } else {
+    const ok = await printer.isPrinterConnected();
+    if (!ok) throw new Error(`Impressora offline: ${iface ?? `${ip}:${port}`}`);
+    await printer.execute();
+  }
+  printer.clear();
 }
 var METHOD_LABELS = {
   cash: "Dinheiro",
@@ -9743,8 +9809,6 @@ var METHOD_LABELS = {
 };
 async function printReceipt(payload) {
   const printer = makePrinter(PRINTER_IP, PRINTER_PORT, CHAR_COLS, PRINTER_IFACE);
-  const isConnected = await printer.isPrinterConnected();
-  if (!isConnected) throw new Error(`Impressora offline: ${PRINTER_IFACE ?? `${PRINTER_IP}:${PRINTER_PORT}`}`);
   printer.alignCenter();
   printer.setTextDoubleHeight();
   printer.bold(true);
@@ -9765,9 +9829,7 @@ async function printReceipt(payload) {
     printer.leftRight(`${item.qty}x ${item.name}`, fmt(item.subtotal));
   }
   printer.drawLine();
-  if (payload.discount > 0) {
-    printer.leftRight("Desconto", `-${fmt(payload.discount)}`);
-  }
+  if (payload.discount > 0) printer.leftRight("Desconto", `-${fmt(payload.discount)}`);
   printer.bold(true);
   printer.leftRight("TOTAL", fmt(payload.total));
   printer.bold(false);
@@ -9785,18 +9847,14 @@ async function printReceipt(payload) {
   printer.println("Obrigado pela visita!");
   printer.newLine();
   printer.cut();
-  await printer.execute();
-  printer.clear();
+  await sendBuffer(PRINTER_IFACE, PRINTER_IP, PRINTER_PORT, printer);
 }
 async function printKitchen(payload) {
   const printer = makePrinter(KITCHEN_IP, KITCHEN_PORT, 48, KITCHEN_IFACE);
   const isConnected = await printer.isPrinterConnected();
   if (!isConnected) throw new Error(`Impressora cozinha offline: ${KITCHEN_IFACE ?? `${KITCHEN_IP}:${KITCHEN_PORT}`}`);
   const label = payload.tableNumber ? `Mesa: ${payload.tableNumber}` : payload.saleType === "counter" ? "Balcao" : "Delivery";
-  const time = new Date(payload.printedAt).toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit"
-  });
+  const time = new Date(payload.printedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   printer.alignCenter();
   printer.setTextDoubleHeight();
   printer.bold(true);
@@ -9836,14 +9894,6 @@ async function markJob(jobId, action) {
     body: JSON.stringify({ action })
   });
 }
-async function processJob(job) {
-  const payload = JSON.parse(job.payload);
-  if (job.type === "kitchen") {
-    await printKitchen(payload);
-  } else {
-    await printReceipt(payload);
-  }
-}
 async function poll() {
   let jobs;
   try {
@@ -9854,7 +9904,7 @@ async function poll() {
   }
   for (const job of jobs) {
     try {
-      await processJob(job);
+      await (job.type === "kitchen" ? printKitchen(JSON.parse(job.payload)) : printReceipt(JSON.parse(job.payload)));
       await markJob(job.id, "printed");
       console.log(`[agent] \u2713 Job ${job.id} (${job.type}) impresso`);
     } catch (err) {
@@ -9862,10 +9912,35 @@ async function poll() {
     }
   }
 }
-console.log(`[agent] Iniciado \u2014 API: ${API_URL}`);
-console.log(`[agent] Impressora recibo: ${PRINTER_IFACE ?? `${PRINTER_IP}:${PRINTER_PORT}`}`);
-console.log(`[agent] Impressora cozinha: ${KITCHEN_IFACE ?? `${KITCHEN_IP}:${KITCHEN_PORT}`}`);
-console.log(`[agent] Polling a cada ${POLL_MS}ms
+async function loadRemoteConfig() {
+  if (process.env.PRINTER_IP && process.env.KITCHEN_PRINTER_IP) return;
+  try {
+    const res = await fetch(`${API_URL}/config`);
+    if (!res.ok) return;
+    const cfg = await res.json();
+    if (!process.env.PRINTER_IP && cfg.printer?.ip) {
+      PRINTER_IP = cfg.printer.ip;
+      if (!process.env.PRINTER_PORT) PRINTER_PORT = cfg.printer.port || 9100;
+    }
+    if (!process.env.KITCHEN_PRINTER_IP && cfg.kitchenPrinter?.ip) {
+      KITCHEN_IP = cfg.kitchenPrinter.ip;
+      if (!process.env.KITCHEN_PRINTER_PORT) KITCHEN_PORT = cfg.kitchenPrinter.port || 9100;
+    }
+    console.log("[agent] Config carregada da API");
+  } catch (err) {
+    console.warn("[agent] Config remota indispon\xEDvel:", err.message);
+  }
+  if (!KITCHEN_IP) KITCHEN_IP = PRINTER_IP;
+}
+async function start() {
+  await loadRemoteConfig();
+  const balcaoLabel = PRINTER_IFACE?.startsWith("win:") ? `Windows USB (${PRINTER_IFACE.slice(4)})` : PRINTER_IFACE?.startsWith("cups:") ? `Mac CUPS (${PRINTER_IFACE.slice(5)})` : PRINTER_IFACE ?? `${PRINTER_IP}:${PRINTER_PORT}`;
+  console.log(`[agent] Iniciado \u2014 API: ${API_URL}`);
+  console.log(`[agent] Impressora balc\xE3o:  ${balcaoLabel}`);
+  console.log(`[agent] Impressora cozinha: ${KITCHEN_IFACE ?? `${KITCHEN_IP}:${KITCHEN_PORT}`}`);
+  console.log(`[agent] Polling a cada ${POLL_MS}ms
 `);
-void poll();
-setInterval(() => void poll(), POLL_MS);
+  void poll();
+  setInterval(() => void poll(), POLL_MS);
+}
+void start();
