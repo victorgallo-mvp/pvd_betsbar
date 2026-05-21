@@ -25,9 +25,9 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/chunkstream.js
+// ../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/chunkstream.js
 var require_chunkstream = __commonJS({
-  "node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/chunkstream.js"(exports2, module2) {
+  "../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/chunkstream.js"(exports2, module2) {
     "use strict";
     var util = require("util");
     var Stream = require("stream");
@@ -163,9 +163,9 @@ var require_chunkstream = __commonJS({
   }
 });
 
-// node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/interlace.js
+// ../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/interlace.js
 var require_interlace = __commonJS({
-  "node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/interlace.js"(exports2) {
+  "../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/interlace.js"(exports2) {
     "use strict";
     var imagePasses = [
       {
@@ -246,9 +246,9 @@ var require_interlace = __commonJS({
   }
 });
 
-// node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/paeth-predictor.js
+// ../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/paeth-predictor.js
 var require_paeth_predictor = __commonJS({
-  "node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/paeth-predictor.js"(exports2, module2) {
+  "../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/paeth-predictor.js"(exports2, module2) {
     "use strict";
     module2.exports = function paethPredictor(left, above, upLeft) {
       let paeth = left + above - upLeft;
@@ -266,9 +266,9 @@ var require_paeth_predictor = __commonJS({
   }
 });
 
-// node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/filter-parse.js
+// ../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/filter-parse.js
 var require_filter_parse = __commonJS({
-  "node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/filter-parse.js"(exports2, module2) {
+  "../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/filter-parse.js"(exports2, module2) {
     "use strict";
     var interlaceUtils = require_interlace();
     var paethPredictor = require_paeth_predictor();
@@ -407,9 +407,9 @@ var require_filter_parse = __commonJS({
   }
 });
 
-// node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/filter-parse-async.js
+// ../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/filter-parse-async.js
 var require_filter_parse_async = __commonJS({
-  "node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/filter-parse-async.js"(exports2, module2) {
+  "../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/filter-parse-async.js"(exports2, module2) {
     "use strict";
     var util = require("util");
     var ChunkStream = require_chunkstream();
@@ -433,9 +433,9 @@ var require_filter_parse_async = __commonJS({
   }
 });
 
-// node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/constants.js
+// ../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/constants.js
 var require_constants = __commonJS({
-  "node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/constants.js"(exports2, module2) {
+  "../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/constants.js"(exports2, module2) {
     "use strict";
     module2.exports = {
       PNG_SIGNATURE: [137, 80, 78, 71, 13, 10, 26, 10],
@@ -468,9 +468,9 @@ var require_constants = __commonJS({
   }
 });
 
-// node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/crc.js
+// ../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/crc.js
 var require_crc = __commonJS({
-  "node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/crc.js"(exports2, module2) {
+  "../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/crc.js"(exports2, module2) {
     "use strict";
     var crcTable = [];
     (function() {
@@ -508,9 +508,9 @@ var require_crc = __commonJS({
   }
 });
 
-// node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/parser.js
+// ../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/parser.js
 var require_parser = __commonJS({
-  "node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/parser.js"(exports2, module2) {
+  "../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/parser.js"(exports2, module2) {
     "use strict";
     var constants = require_constants();
     var CrcCalculator = require_crc();
@@ -729,9 +729,9 @@ var require_parser = __commonJS({
   }
 });
 
-// node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/bitmapper.js
+// ../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/bitmapper.js
 var require_bitmapper = __commonJS({
-  "node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/bitmapper.js"(exports2) {
+  "../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/bitmapper.js"(exports2) {
     "use strict";
     var interlaceUtils = require_interlace();
     var pixelBppMapper = [
@@ -977,9 +977,9 @@ var require_bitmapper = __commonJS({
   }
 });
 
-// node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/format-normaliser.js
+// ../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/format-normaliser.js
 var require_format_normaliser = __commonJS({
-  "node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/format-normaliser.js"(exports2, module2) {
+  "../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/format-normaliser.js"(exports2, module2) {
     "use strict";
     function dePalette(indata, outdata, width, height, palette) {
       let pxPos = 0;
@@ -1058,9 +1058,9 @@ var require_format_normaliser = __commonJS({
   }
 });
 
-// node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/parser-async.js
+// ../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/parser-async.js
 var require_parser_async = __commonJS({
-  "node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/parser-async.js"(exports2, module2) {
+  "../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/parser-async.js"(exports2, module2) {
     "use strict";
     var util = require("util");
     var zlib = require("zlib");
@@ -1188,9 +1188,9 @@ var require_parser_async = __commonJS({
   }
 });
 
-// node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/bitpacker.js
+// ../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/bitpacker.js
 var require_bitpacker = __commonJS({
-  "node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/bitpacker.js"(exports2, module2) {
+  "../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/bitpacker.js"(exports2, module2) {
     "use strict";
     var constants = require_constants();
     module2.exports = function(dataIn, width, height, options) {
@@ -1338,9 +1338,9 @@ var require_bitpacker = __commonJS({
   }
 });
 
-// node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/filter-pack.js
+// ../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/filter-pack.js
 var require_filter_pack = __commonJS({
-  "node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/filter-pack.js"(exports2, module2) {
+  "../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/filter-pack.js"(exports2, module2) {
     "use strict";
     var paethPredictor = require_paeth_predictor();
     function filterNone(pxData, pxPos, byteWidth, rawData, rawPos) {
@@ -1480,9 +1480,9 @@ var require_filter_pack = __commonJS({
   }
 });
 
-// node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/packer.js
+// ../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/packer.js
 var require_packer = __commonJS({
-  "node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/packer.js"(exports2, module2) {
+  "../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/packer.js"(exports2, module2) {
     "use strict";
     var constants = require_constants();
     var CrcStream = require_crc();
@@ -1580,9 +1580,9 @@ var require_packer = __commonJS({
   }
 });
 
-// node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/packer-async.js
+// ../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/packer-async.js
 var require_packer_async = __commonJS({
-  "node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/packer-async.js"(exports2, module2) {
+  "../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/packer-async.js"(exports2, module2) {
     "use strict";
     var util = require("util");
     var Stream = require("stream");
@@ -1622,9 +1622,9 @@ var require_packer_async = __commonJS({
   }
 });
 
-// node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/sync-inflate.js
+// ../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/sync-inflate.js
 var require_sync_inflate = __commonJS({
-  "node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/sync-inflate.js"(exports2, module2) {
+  "../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/sync-inflate.js"(exports2, module2) {
     "use strict";
     var assert = require("assert").ok;
     var zlib = require("zlib");
@@ -1759,9 +1759,9 @@ var require_sync_inflate = __commonJS({
   }
 });
 
-// node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/sync-reader.js
+// ../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/sync-reader.js
 var require_sync_reader = __commonJS({
-  "node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/sync-reader.js"(exports2, module2) {
+  "../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/sync-reader.js"(exports2, module2) {
     "use strict";
     var SyncReader = module2.exports = function(buffer) {
       this._buffer = buffer;
@@ -1797,9 +1797,9 @@ var require_sync_reader = __commonJS({
   }
 });
 
-// node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/filter-parse-sync.js
+// ../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/filter-parse-sync.js
 var require_filter_parse_sync = __commonJS({
-  "node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/filter-parse-sync.js"(exports2) {
+  "../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/filter-parse-sync.js"(exports2) {
     "use strict";
     var SyncReader = require_sync_reader();
     var Filter = require_filter_parse();
@@ -1821,9 +1821,9 @@ var require_filter_parse_sync = __commonJS({
   }
 });
 
-// node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/parser-sync.js
+// ../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/parser-sync.js
 var require_parser_sync = __commonJS({
-  "node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/parser-sync.js"(exports2, module2) {
+  "../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/parser-sync.js"(exports2, module2) {
     "use strict";
     var hasSyncZlib = true;
     var zlib = require("zlib");
@@ -1916,9 +1916,9 @@ var require_parser_sync = __commonJS({
   }
 });
 
-// node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/packer-sync.js
+// ../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/packer-sync.js
 var require_packer_sync = __commonJS({
-  "node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/packer-sync.js"(exports2, module2) {
+  "../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/packer-sync.js"(exports2, module2) {
     "use strict";
     var hasSyncZlib = true;
     var zlib = require("zlib");
@@ -1961,9 +1961,9 @@ var require_packer_sync = __commonJS({
   }
 });
 
-// node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/png-sync.js
+// ../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/png-sync.js
 var require_png_sync = __commonJS({
-  "node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/png-sync.js"(exports2) {
+  "../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/png-sync.js"(exports2) {
     "use strict";
     var parse = require_parser_sync();
     var pack = require_packer_sync();
@@ -1976,9 +1976,9 @@ var require_png_sync = __commonJS({
   }
 });
 
-// node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/png.js
+// ../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/png.js
 var require_png = __commonJS({
-  "node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/png.js"(exports2) {
+  "../../node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/lib/png.js"(exports2) {
     "use strict";
     var util = require("util");
     var Stream = require("stream");
@@ -2113,9 +2113,9 @@ var require_png = __commonJS({
   }
 });
 
-// node_modules/.pnpm/safer-buffer@2.1.2/node_modules/safer-buffer/safer.js
+// ../../node_modules/.pnpm/safer-buffer@2.1.2/node_modules/safer-buffer/safer.js
 var require_safer = __commonJS({
-  "node_modules/.pnpm/safer-buffer@2.1.2/node_modules/safer-buffer/safer.js"(exports2, module2) {
+  "../../node_modules/.pnpm/safer-buffer@2.1.2/node_modules/safer-buffer/safer.js"(exports2, module2) {
     "use strict";
     var buffer = require("buffer");
     var Buffer2 = buffer.Buffer;
@@ -2181,9 +2181,9 @@ var require_safer = __commonJS({
   }
 });
 
-// node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/lib/bom-handling.js
+// ../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/lib/bom-handling.js
 var require_bom_handling = __commonJS({
-  "node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/lib/bom-handling.js"(exports2) {
+  "../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/lib/bom-handling.js"(exports2) {
     "use strict";
     var BOMChar = "\uFEFF";
     exports2.PrependBOM = PrependBOMWrapper;
@@ -2225,9 +2225,9 @@ var require_bom_handling = __commonJS({
   }
 });
 
-// node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/internal.js
+// ../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/internal.js
 var require_internal = __commonJS({
-  "node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/internal.js"(exports2, module2) {
+  "../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/internal.js"(exports2, module2) {
     "use strict";
     var Buffer2 = require_safer().Buffer;
     module2.exports = {
@@ -2377,9 +2377,9 @@ var require_internal = __commonJS({
   }
 });
 
-// node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/utf32.js
+// ../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/utf32.js
 var require_utf32 = __commonJS({
-  "node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/utf32.js"(exports2) {
+  "../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/utf32.js"(exports2) {
     "use strict";
     var Buffer2 = require_safer().Buffer;
     exports2._utf32 = Utf32Codec;
@@ -2596,9 +2596,9 @@ var require_utf32 = __commonJS({
   }
 });
 
-// node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/utf16.js
+// ../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/utf16.js
 var require_utf16 = __commonJS({
-  "node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/utf16.js"(exports2) {
+  "../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/utf16.js"(exports2) {
     "use strict";
     var Buffer2 = require_safer().Buffer;
     exports2.utf16be = Utf16BECodec;
@@ -2730,9 +2730,9 @@ var require_utf16 = __commonJS({
   }
 });
 
-// node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/utf7.js
+// ../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/utf7.js
 var require_utf7 = __commonJS({
-  "node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/utf7.js"(exports2) {
+  "../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/utf7.js"(exports2) {
     "use strict";
     var Buffer2 = require_safer().Buffer;
     exports2.utf7 = Utf7Codec;
@@ -2931,9 +2931,9 @@ var require_utf7 = __commonJS({
   }
 });
 
-// node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/sbcs-codec.js
+// ../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/sbcs-codec.js
 var require_sbcs_codec = __commonJS({
-  "node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/sbcs-codec.js"(exports2) {
+  "../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/sbcs-codec.js"(exports2) {
     "use strict";
     var Buffer2 = require_safer().Buffer;
     exports2._sbcs = SBCSCodec;
@@ -2987,9 +2987,9 @@ var require_sbcs_codec = __commonJS({
   }
 });
 
-// node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/sbcs-data.js
+// ../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/sbcs-data.js
 var require_sbcs_data = __commonJS({
-  "node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/sbcs-data.js"(exports2, module2) {
+  "../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/sbcs-data.js"(exports2, module2) {
     "use strict";
     module2.exports = {
       // Not supported by iconv, not sure why.
@@ -3140,9 +3140,9 @@ var require_sbcs_data = __commonJS({
   }
 });
 
-// node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/sbcs-data-generated.js
+// ../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/sbcs-data-generated.js
 var require_sbcs_data_generated = __commonJS({
-  "node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/sbcs-data-generated.js"(exports2, module2) {
+  "../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/sbcs-data-generated.js"(exports2, module2) {
     "use strict";
     module2.exports = {
       "437": "cp437",
@@ -3595,9 +3595,9 @@ var require_sbcs_data_generated = __commonJS({
   }
 });
 
-// node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/dbcs-codec.js
+// ../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/dbcs-codec.js
 var require_dbcs_codec = __commonJS({
-  "node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/dbcs-codec.js"(exports2) {
+  "../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/dbcs-codec.js"(exports2) {
     "use strict";
     var Buffer2 = require_safer().Buffer;
     exports2._dbcs = DBCSCodec;
@@ -4012,9 +4012,9 @@ var require_dbcs_codec = __commonJS({
   }
 });
 
-// node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/shiftjis.json
+// ../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/shiftjis.json
 var require_shiftjis = __commonJS({
-  "node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/shiftjis.json"(exports2, module2) {
+  "../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/shiftjis.json"(exports2, module2) {
     module2.exports = [
       ["0", "\0", 128],
       ["a1", "\uFF61", 62],
@@ -4143,9 +4143,9 @@ var require_shiftjis = __commonJS({
   }
 });
 
-// node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/eucjp.json
+// ../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/eucjp.json
 var require_eucjp = __commonJS({
-  "node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/eucjp.json"(exports2, module2) {
+  "../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/eucjp.json"(exports2, module2) {
     module2.exports = [
       ["0", "\0", 127],
       ["8ea1", "\uFF61", 62],
@@ -4331,9 +4331,9 @@ var require_eucjp = __commonJS({
   }
 });
 
-// node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/cp936.json
+// ../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/cp936.json
 var require_cp936 = __commonJS({
-  "node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/cp936.json"(exports2, module2) {
+  "../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/cp936.json"(exports2, module2) {
     module2.exports = [
       ["0", "\0", 127, "\u20AC"],
       ["8140", "\u4E02\u4E04\u4E05\u4E06\u4E0F\u4E12\u4E17\u4E1F\u4E20\u4E21\u4E23\u4E26\u4E29\u4E2E\u4E2F\u4E31\u4E33\u4E35\u4E37\u4E3C\u4E40\u4E41\u4E42\u4E44\u4E46\u4E4A\u4E51\u4E55\u4E57\u4E5A\u4E5B\u4E62\u4E63\u4E64\u4E65\u4E67\u4E68\u4E6A", 5, "\u4E72\u4E74", 9, "\u4E7F", 6, "\u4E87\u4E8A"],
@@ -4601,9 +4601,9 @@ var require_cp936 = __commonJS({
   }
 });
 
-// node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/gbk-added.json
+// ../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/gbk-added.json
 var require_gbk_added = __commonJS({
-  "node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/gbk-added.json"(exports2, module2) {
+  "../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/gbk-added.json"(exports2, module2) {
     module2.exports = [
       ["a140", "\uE4C6", 62],
       ["a180", "\uE505", 32],
@@ -4663,16 +4663,16 @@ var require_gbk_added = __commonJS({
   }
 });
 
-// node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/gb18030-ranges.json
+// ../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/gb18030-ranges.json
 var require_gb18030_ranges = __commonJS({
-  "node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/gb18030-ranges.json"(exports2, module2) {
+  "../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/gb18030-ranges.json"(exports2, module2) {
     module2.exports = { uChars: [128, 165, 169, 178, 184, 216, 226, 235, 238, 244, 248, 251, 253, 258, 276, 284, 300, 325, 329, 334, 364, 463, 465, 467, 469, 471, 473, 475, 477, 506, 594, 610, 712, 716, 730, 930, 938, 962, 970, 1026, 1104, 1106, 8209, 8215, 8218, 8222, 8231, 8241, 8244, 8246, 8252, 8365, 8452, 8454, 8458, 8471, 8482, 8556, 8570, 8596, 8602, 8713, 8720, 8722, 8726, 8731, 8737, 8740, 8742, 8748, 8751, 8760, 8766, 8777, 8781, 8787, 8802, 8808, 8816, 8854, 8858, 8870, 8896, 8979, 9322, 9372, 9548, 9588, 9616, 9622, 9634, 9652, 9662, 9672, 9676, 9680, 9702, 9735, 9738, 9793, 9795, 11906, 11909, 11913, 11917, 11928, 11944, 11947, 11951, 11956, 11960, 11964, 11979, 12284, 12292, 12312, 12319, 12330, 12351, 12436, 12447, 12535, 12543, 12586, 12842, 12850, 12964, 13200, 13215, 13218, 13253, 13263, 13267, 13270, 13384, 13428, 13727, 13839, 13851, 14617, 14703, 14801, 14816, 14964, 15183, 15471, 15585, 16471, 16736, 17208, 17325, 17330, 17374, 17623, 17997, 18018, 18212, 18218, 18301, 18318, 18760, 18811, 18814, 18820, 18823, 18844, 18848, 18872, 19576, 19620, 19738, 19887, 40870, 59244, 59336, 59367, 59413, 59417, 59423, 59431, 59437, 59443, 59452, 59460, 59478, 59493, 63789, 63866, 63894, 63976, 63986, 64016, 64018, 64021, 64025, 64034, 64037, 64042, 65074, 65093, 65107, 65112, 65127, 65132, 65375, 65510, 65536], gbChars: [0, 36, 38, 45, 50, 81, 89, 95, 96, 100, 103, 104, 105, 109, 126, 133, 148, 172, 175, 179, 208, 306, 307, 308, 309, 310, 311, 312, 313, 341, 428, 443, 544, 545, 558, 741, 742, 749, 750, 805, 819, 820, 7922, 7924, 7925, 7927, 7934, 7943, 7944, 7945, 7950, 8062, 8148, 8149, 8152, 8164, 8174, 8236, 8240, 8262, 8264, 8374, 8380, 8381, 8384, 8388, 8390, 8392, 8393, 8394, 8396, 8401, 8406, 8416, 8419, 8424, 8437, 8439, 8445, 8482, 8485, 8496, 8521, 8603, 8936, 8946, 9046, 9050, 9063, 9066, 9076, 9092, 9100, 9108, 9111, 9113, 9131, 9162, 9164, 9218, 9219, 11329, 11331, 11334, 11336, 11346, 11361, 11363, 11366, 11370, 11372, 11375, 11389, 11682, 11686, 11687, 11692, 11694, 11714, 11716, 11723, 11725, 11730, 11736, 11982, 11989, 12102, 12336, 12348, 12350, 12384, 12393, 12395, 12397, 12510, 12553, 12851, 12962, 12973, 13738, 13823, 13919, 13933, 14080, 14298, 14585, 14698, 15583, 15847, 16318, 16434, 16438, 16481, 16729, 17102, 17122, 17315, 17320, 17402, 17418, 17859, 17909, 17911, 17915, 17916, 17936, 17939, 17961, 18664, 18703, 18814, 18962, 19043, 33469, 33470, 33471, 33484, 33485, 33490, 33497, 33501, 33505, 33513, 33520, 33536, 33550, 37845, 37921, 37948, 38029, 38038, 38064, 38065, 38066, 38069, 38075, 38076, 38078, 39108, 39109, 39113, 39114, 39115, 39116, 39265, 39394, 189e3] };
   }
 });
 
-// node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/cp949.json
+// ../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/cp949.json
 var require_cp949 = __commonJS({
-  "node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/cp949.json"(exports2, module2) {
+  "../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/cp949.json"(exports2, module2) {
     module2.exports = [
       ["0", "\0", 127],
       ["8141", "\uAC02\uAC03\uAC05\uAC06\uAC0B", 4, "\uAC18\uAC1E\uAC1F\uAC21\uAC22\uAC23\uAC25", 6, "\uAC2E\uAC32\uAC33\uAC34"],
@@ -4949,9 +4949,9 @@ var require_cp949 = __commonJS({
   }
 });
 
-// node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/cp950.json
+// ../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/cp950.json
 var require_cp950 = __commonJS({
-  "node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/cp950.json"(exports2, module2) {
+  "../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/cp950.json"(exports2, module2) {
     module2.exports = [
       ["0", "\0", 127],
       ["a140", "\u3000\uFF0C\u3001\u3002\uFF0E\u2027\uFF1B\uFF1A\uFF1F\uFF01\uFE30\u2026\u2025\uFE50\uFE51\uFE52\xB7\uFE54\uFE55\uFE56\uFE57\uFF5C\u2013\uFE31\u2014\uFE33\u2574\uFE34\uFE4F\uFF08\uFF09\uFE35\uFE36\uFF5B\uFF5D\uFE37\uFE38\u3014\u3015\uFE39\uFE3A\u3010\u3011\uFE3B\uFE3C\u300A\u300B\uFE3D\uFE3E\u3008\u3009\uFE3F\uFE40\u300C\u300D\uFE41\uFE42\u300E\u300F\uFE43\uFE44\uFE59\uFE5A"],
@@ -5132,9 +5132,9 @@ var require_cp950 = __commonJS({
   }
 });
 
-// node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/big5-added.json
+// ../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/big5-added.json
 var require_big5_added = __commonJS({
-  "node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/big5-added.json"(exports2, module2) {
+  "../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/tables/big5-added.json"(exports2, module2) {
     module2.exports = [
       ["8740", "\u43F0\u4C32\u4603\u45A6\u4578\u{27267}\u4D77\u45B3\u{27CB1}\u4CE2\u{27CC5}\u3B95\u4736\u4744\u4C47\u4C40\u{242BF}\u{23617}\u{27352}\u{26E8B}\u{270D2}\u4C57\u{2A351}\u474F\u45DA\u4C85\u{27C6C}\u4D07\u4AA4\u46A1\u{26B23}\u7225\u{25A54}\u{21A63}\u{23E06}\u{23F61}\u664D\u56FB"],
       ["8767", "\u7D95\u591D\u{28BB9}\u3DF4\u9734\u{27BEF}\u5BDB\u{21D5E}\u5AA4\u3625\u{29EB0}\u5AD1\u5BB7\u5CFC\u676E\u8593\u{29945}\u7461\u749D\u3875\u{21D53}\u{2369E}\u{26021}\u3EEC"],
@@ -5260,9 +5260,9 @@ var require_big5_added = __commonJS({
   }
 });
 
-// node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/dbcs-data.js
+// ../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/dbcs-data.js
 var require_dbcs_data = __commonJS({
-  "node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/dbcs-data.js"(exports2, module2) {
+  "../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/dbcs-data.js"(exports2, module2) {
     "use strict";
     module2.exports = {
       // == Japanese/ShiftJIS ====================================================
@@ -5507,9 +5507,9 @@ var require_dbcs_data = __commonJS({
   }
 });
 
-// node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/index.js
+// ../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/index.js
 var require_encodings = __commonJS({
-  "node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/index.js"(exports2, module2) {
+  "../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/encodings/index.js"(exports2, module2) {
     "use strict";
     var modules = [
       require_internal(),
@@ -5534,9 +5534,9 @@ var require_encodings = __commonJS({
   }
 });
 
-// node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/lib/streams.js
+// ../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/lib/streams.js
 var require_streams = __commonJS({
-  "node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/lib/streams.js"(exports2, module2) {
+  "../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/lib/streams.js"(exports2, module2) {
     "use strict";
     var Buffer2 = require_safer().Buffer;
     module2.exports = function(stream_module) {
@@ -5629,9 +5629,9 @@ var require_streams = __commonJS({
   }
 });
 
-// node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/lib/index.js
+// ../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/lib/index.js
 var require_lib = __commonJS({
-  "node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/lib/index.js"(exports2, module2) {
+  "../../node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/lib/index.js"(exports2, module2) {
     "use strict";
     var Buffer2 = require_safer().Buffer;
     var bomHandling = require_bom_handling();
@@ -5749,9 +5749,9 @@ var require_lib = __commonJS({
   }
 });
 
-// node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/interfaces/interface.js
+// ../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/interfaces/interface.js
 var require_interface = __commonJS({
-  "node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/interfaces/interface.js"(exports2, module2) {
+  "../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/interfaces/interface.js"(exports2, module2) {
     var Interface = class {
       getPrinterName() {
         throw new Error("'getPrinterName' function not implemented.");
@@ -5767,9 +5767,9 @@ var require_interface = __commonJS({
   }
 });
 
-// node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/interfaces/network.js
+// ../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/interfaces/network.js
 var require_network = __commonJS({
-  "node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/interfaces/network.js"(exports2, module2) {
+  "../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/interfaces/network.js"(exports2, module2) {
     var Net = require("net");
     var Interface = require_interface();
     var Network = class extends Interface {
@@ -5847,9 +5847,9 @@ var require_network = __commonJS({
   }
 });
 
-// node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/interfaces/printer.js
+// ../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/interfaces/printer.js
 var require_printer = __commonJS({
-  "node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/interfaces/printer.js"(exports2, module2) {
+  "../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/interfaces/printer.js"(exports2, module2) {
     var Interface = require_interface();
     var Printer = class extends Interface {
       constructor(printerName, moduleName) {
@@ -5902,9 +5902,9 @@ var require_printer = __commonJS({
   }
 });
 
-// node_modules/.pnpm/dank-do-while@0.1.2/node_modules/dank-do-while/index.js
+// ../../node_modules/.pnpm/dank-do-while@0.1.2/node_modules/dank-do-while/index.js
 var require_dank_do_while = __commonJS({
-  "node_modules/.pnpm/dank-do-while@0.1.2/node_modules/dank-do-while/index.js"(exports2, module2) {
+  "../../node_modules/.pnpm/dank-do-while@0.1.2/node_modules/dank-do-while/index.js"(exports2, module2) {
     module2.exports = function doWhile(fn, done, concurrent) {
       var pending = 0;
       var end = false;
@@ -5932,9 +5932,9 @@ var require_dank_do_while = __commonJS({
   }
 });
 
-// node_modules/.pnpm/write-file-queue@0.0.1/node_modules/write-file-queue/index.js
+// ../../node_modules/.pnpm/write-file-queue@0.0.1/node_modules/write-file-queue/index.js
 var require_write_file_queue = __commonJS({
-  "node_modules/.pnpm/write-file-queue@0.0.1/node_modules/write-file-queue/index.js"(exports2, module2) {
+  "../../node_modules/.pnpm/write-file-queue@0.0.1/node_modules/write-file-queue/index.js"(exports2, module2) {
     var fs = require("fs");
     var doWhile = require_dank_do_while();
     module2.exports = function(options) {
@@ -6010,9 +6010,9 @@ var require_write_file_queue = __commonJS({
   }
 });
 
-// node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/interfaces/file.js
+// ../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/interfaces/file.js
 var require_file = __commonJS({
-  "node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/interfaces/file.js"(exports2, module2) {
+  "../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/interfaces/file.js"(exports2, module2) {
     var fs = require("fs");
     var Interface = require_interface();
     var File = class extends Interface {
@@ -6053,9 +6053,9 @@ var require_file = __commonJS({
   }
 });
 
-// node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/interfaces/index.js
+// ../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/interfaces/index.js
 var require_interfaces = __commonJS({
-  "node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/interfaces/index.js"(exports2, module2) {
+  "../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/interfaces/index.js"(exports2, module2) {
     function getInterface(uri, options, driver) {
       const networkRegex = /^tcp:\/\/([^/:]+)(?::(\d+))?\/?$/i;
       const printerRegex = /^printer:([^/]+)(?:\/([\w-]*))?$/i;
@@ -6079,9 +6079,9 @@ var require_interfaces = __commonJS({
   }
 });
 
-// node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/printer-type.js
+// ../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/printer-type.js
 var require_printer_type = __commonJS({
-  "node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/printer-type.js"(exports2, module2) {
+  "../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/printer-type.js"(exports2, module2) {
     var PrinterType = class {
       constructor() {
       }
@@ -6126,9 +6126,9 @@ var require_printer_type = __commonJS({
   }
 });
 
-// node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/epson-config.js
+// ../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/epson-config.js
 var require_epson_config = __commonJS({
-  "node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/epson-config.js"(exports2, module2) {
+  "../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/epson-config.js"(exports2, module2) {
     module2.exports = {
       // Feed control sequences
       CTL_LF: Buffer.from([10]),
@@ -6420,9 +6420,9 @@ var require_epson_config = __commonJS({
   }
 });
 
-// node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/epson.js
+// ../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/epson.js
 var require_epson = __commonJS({
-  "node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/epson.js"(exports2, module2) {
+  "../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/epson.js"(exports2, module2) {
     var PrinterType = require_printer_type();
     var Epson = class extends PrinterType {
       constructor() {
@@ -6668,9 +6668,9 @@ var require_epson = __commonJS({
   }
 });
 
-// node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/star-config.js
+// ../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/star-config.js
 var require_star_config = __commonJS({
-  "node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/star-config.js"(exports2, module2) {
+  "../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/star-config.js"(exports2, module2) {
     module2.exports = {
       // Feed control sequences
       CTL_LF: Buffer.from([10]),
@@ -6948,9 +6948,9 @@ var require_star_config = __commonJS({
   }
 });
 
-// node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/star.js
+// ../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/star.js
 var require_star = __commonJS({
-  "node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/star.js"(exports2, module2) {
+  "../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/star.js"(exports2, module2) {
     var PrinterType = require_printer_type();
     var Star = class extends PrinterType {
       constructor() {
@@ -7145,9 +7145,9 @@ var require_star = __commonJS({
   }
 });
 
-// node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/tanca-config.js
+// ../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/tanca-config.js
 var require_tanca_config = __commonJS({
-  "node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/tanca-config.js"(exports2, module2) {
+  "../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/tanca-config.js"(exports2, module2) {
     module2.exports = {
       // Feed control sequences
       CTL_LF: Buffer.from([10]),
@@ -7426,9 +7426,9 @@ var require_tanca_config = __commonJS({
   }
 });
 
-// node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/tanca.js
+// ../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/tanca.js
 var require_tanca = __commonJS({
-  "node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/tanca.js"(exports2, module2) {
+  "../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/tanca.js"(exports2, module2) {
     var PrinterType = require_printer_type();
     var Tanca = class extends PrinterType {
       constructor() {
@@ -7656,9 +7656,9 @@ var require_tanca = __commonJS({
   }
 });
 
-// node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/daruma-config.js
+// ../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/daruma-config.js
 var require_daruma_config = __commonJS({
-  "node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/daruma-config.js"(exports2, module2) {
+  "../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/daruma-config.js"(exports2, module2) {
     module2.exports = {
       // Feed control sequences
       CTL_LF: Buffer.from([10]),
@@ -7814,9 +7814,9 @@ var require_daruma_config = __commonJS({
   }
 });
 
-// node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/daruma.js
+// ../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/daruma.js
 var require_daruma = __commonJS({
-  "node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/daruma.js"(exports2, module2) {
+  "../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/daruma.js"(exports2, module2) {
     var PrinterType = require_printer_type();
     var Daruma = class extends PrinterType {
       constructor() {
@@ -7840,9 +7840,9 @@ var require_daruma = __commonJS({
   }
 });
 
-// node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/brother-config.js
+// ../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/brother-config.js
 var require_brother_config = __commonJS({
-  "node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/brother-config.js"(exports2, module2) {
+  "../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/brother-config.js"(exports2, module2) {
     module2.exports = {
       // Feed control sequences
       CTL_LF: Buffer.from([10]),
@@ -8096,9 +8096,9 @@ var require_brother_config = __commonJS({
   }
 });
 
-// node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/brother.js
+// ../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/brother.js
 var require_brother = __commonJS({
-  "node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/brother.js"(exports2, module2) {
+  "../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/brother.js"(exports2, module2) {
     var PrinterType = require_printer_type();
     var Brother = class extends PrinterType {
       constructor() {
@@ -8281,9 +8281,9 @@ var require_brother = __commonJS({
   }
 });
 
-// node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/custom-config.js
+// ../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/custom-config.js
 var require_custom_config = __commonJS({
-  "node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/custom-config.js"(exports2, module2) {
+  "../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/custom-config.js"(exports2, module2) {
     module2.exports = {
       // Feed control sequences
       CTL_LF: Buffer.from([10]),
@@ -8572,9 +8572,9 @@ var require_custom_config = __commonJS({
   }
 });
 
-// node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/custom.js
+// ../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/custom.js
 var require_custom = __commonJS({
-  "node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/custom.js"(exports2, module2) {
+  "../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/types/custom.js"(exports2, module2) {
     var PrinterType = require_printer_type();
     var Custom = class extends PrinterType {
       constructor() {
@@ -8797,9 +8797,9 @@ var require_custom = __commonJS({
   }
 });
 
-// node_modules/.pnpm/unorm@1.6.0/node_modules/unorm/lib/unorm.js
+// ../../node_modules/.pnpm/unorm@1.6.0/node_modules/unorm/lib/unorm.js
 var require_unorm = __commonJS({
-  "node_modules/.pnpm/unorm@1.6.0/node_modules/unorm/lib/unorm.js"(exports2, module2) {
+  "../../node_modules/.pnpm/unorm@1.6.0/node_modules/unorm/lib/unorm.js"(exports2, module2) {
     (function(root) {
       "use strict";
       var DEFAULT_FEATURE = [null, 0, {}];
@@ -9178,9 +9178,9 @@ var require_unorm = __commonJS({
   }
 });
 
-// node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/core.js
+// ../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/core.js
 var require_core = __commonJS({
-  "node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/core.js"(exports2, module2) {
+  "../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/lib/core.js"(exports2, module2) {
     var { PNG } = require_png();
     var iconv = require_lib();
     var PrinterTypes = {
@@ -9703,14 +9703,14 @@ var require_core = __commonJS({
   }
 });
 
-// node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/node-thermal-printer.js
+// ../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/node-thermal-printer.js
 var require_node_thermal_printer = __commonJS({
-  "node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/node-thermal-printer.js"(exports2, module2) {
+  "../../node_modules/.pnpm/node-thermal-printer@4.6.0/node_modules/node-thermal-printer/node-thermal-printer.js"(exports2, module2) {
     module2.exports = require_core();
   }
 });
 
-// apps/api/src/print-agent.ts
+// src/print-agent.ts
 var import_node_thermal_printer = __toESM(require_node_thermal_printer(), 1);
 var import_node_child_process = require("node:child_process");
 var API_URL = (process.env.RAILWAY_API_URL ?? "http://localhost:3000").replace(/\/$/, "");
@@ -9735,26 +9735,72 @@ async function printViaCups(printerName, buf) {
     proc.on("error", reject);
   });
 }
+var WIN_PRINT_PS = `
+$ErrorActionPreference = 'Stop'
+$name = $env:WIN_PRINTER_NAME
+$b64  = [Console]::In.ReadToEnd()
+$bytes = [Convert]::FromBase64String($b64)
+$src = @'
+using System;
+using System.Runtime.InteropServices;
+public static class RawPrinter {
+  [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)]
+  public struct DOCINFO { public string pDocName; public string pOutputFile; public string pDataType; }
+  [DllImport("winspool.drv", CharSet=CharSet.Unicode, SetLastError=true)] public static extern bool OpenPrinter(string src, out IntPtr h, IntPtr d);
+  [DllImport("winspool.drv", SetLastError=true)] public static extern bool ClosePrinter(IntPtr h);
+  [DllImport("winspool.drv", CharSet=CharSet.Unicode, SetLastError=true)] public static extern bool StartDocPrinter(IntPtr h, int level, ref DOCINFO di);
+  [DllImport("winspool.drv", SetLastError=true)] public static extern bool EndDocPrinter(IntPtr h);
+  [DllImport("winspool.drv", SetLastError=true)] public static extern bool StartPagePrinter(IntPtr h);
+  [DllImport("winspool.drv", SetLastError=true)] public static extern bool EndPagePrinter(IntPtr h);
+  [DllImport("winspool.drv", SetLastError=true)] public static extern bool WritePrinter(IntPtr h, byte[] buf, int len, out int written);
+  public static void Send(string printer, byte[] data) {
+    IntPtr h;
+    if (!OpenPrinter(printer, out h, IntPtr.Zero)) throw new Exception("OpenPrinter falhou: " + Marshal.GetLastWin32Error());
+    try {
+      DOCINFO di = new DOCINFO(); di.pDocName = "Betsbar PDV"; di.pDataType = "RAW";
+      if (!StartDocPrinter(h, 1, ref di)) throw new Exception("StartDocPrinter falhou: " + Marshal.GetLastWin32Error());
+      StartPagePrinter(h);
+      int written;
+      WritePrinter(h, data, data.Length, out written);
+      EndPagePrinter(h); EndDocPrinter(h);
+    } finally { ClosePrinter(h); }
+  }
+}
+'@
+Add-Type -TypeDefinition $src -Language CSharp
+[RawPrinter]::Send($name, $bytes)
+`;
+async function printViaWindows(printerName, buf) {
+  return new Promise((resolve, reject) => {
+    const proc = (0, import_node_child_process.spawn)("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", "-"], {
+      env: { ...process.env, WIN_PRINTER_NAME: printerName }
+    });
+    let stderr = "";
+    proc.stderr.on("data", (d) => {
+      stderr += d.toString();
+    });
+    proc.stdin.write(WIN_PRINT_PS + "\n");
+    proc.stdin.write(buf.toString("base64"));
+    proc.stdin.end();
+    proc.on("close", (code) => code === 0 ? resolve() : reject(new Error(`PowerShell saiu com c\xF3digo ${code}: ${stderr.trim()}`)));
+    proc.on("error", reject);
+  });
+}
 function makePrinter(ip, port, cols, ifaceOverride) {
-  const iface = ifaceOverride?.startsWith("cups:") ? "tcp://127.0.0.1:19100" : ifaceOverride ?? `tcp://${ip}:${port}`;
-  const opts = {
+  const inMemory = ifaceOverride?.startsWith("cups:") || ifaceOverride?.startsWith("win:");
+  const iface = inMemory ? "tcp://127.0.0.1:19100" : ifaceOverride ?? `tcp://${ip}:${port}`;
+  return new import_node_thermal_printer.default.ThermalPrinter({
     type: import_node_thermal_printer.default.types.EPSON,
     interface: iface,
     width: cols,
     characterSet: import_node_thermal_printer.default.CharacterSet.PC860_PORTUGUESE
-  };
-  if (ifaceOverride?.startsWith("printer:")) {
-    try {
-      opts.driver = require("@thiagoelg/node-printer");
-    } catch {
-      throw new Error("Driver USB n\xE3o encontrado. Feche e abra o iniciar.bat novamente para instalar.");
-    }
-  }
-  return new import_node_thermal_printer.default.ThermalPrinter(opts);
+  });
 }
 async function sendBuffer(iface, ip, port, printer) {
   if (iface?.startsWith("cups:")) {
     await printViaCups(iface.slice(5), printer.getBuffer());
+  } else if (iface?.startsWith("win:")) {
+    await printViaWindows(iface.slice(4), printer.getBuffer());
   } else {
     const ok = await printer.isPrinterConnected();
     if (!ok) throw new Error(`Impressora offline: ${iface ?? `${ip}:${port}`}`);
@@ -9814,8 +9860,6 @@ async function printReceipt(payload) {
 }
 async function printKitchen(payload) {
   const printer = makePrinter(KITCHEN_IP, KITCHEN_PORT, 48, KITCHEN_IFACE);
-  const isConnected = await printer.isPrinterConnected();
-  if (!isConnected) throw new Error(`Impressora cozinha offline: ${KITCHEN_IFACE ?? `${KITCHEN_IP}:${KITCHEN_PORT}`}`);
   const label = payload.tableNumber ? `Mesa: ${payload.tableNumber}` : payload.saleType === "counter" ? "Balcao" : "Delivery";
   const time = new Date(payload.printedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   printer.alignCenter();
@@ -9842,8 +9886,7 @@ async function printKitchen(payload) {
   printer.drawLine();
   printer.newLine();
   printer.cut();
-  await printer.execute();
-  printer.clear();
+  await sendBuffer(KITCHEN_IFACE, KITCHEN_IP, KITCHEN_PORT, printer);
 }
 async function fetchPending() {
   const res = await fetch(`${API_URL}/print/pending`);
