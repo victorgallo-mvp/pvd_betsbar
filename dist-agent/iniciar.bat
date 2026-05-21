@@ -1,4 +1,5 @@
 @echo off
+cd /d "%~dp0"
 :: ============================================================
 ::  Agente de Impressao - Betsbar PDV
 ::  Configure as variaveis abaixo antes de usar
