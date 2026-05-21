@@ -9737,9 +9737,8 @@ async function printViaCups(printerName, buf) {
 }
 var WIN_PRINT_PS = `
 $ErrorActionPreference = 'Stop'
-$name = $env:WIN_PRINTER_NAME
-$b64  = [Console]::In.ReadToEnd()
-$bytes = [Convert]::FromBase64String($b64)
+$name  = $env:WIN_PRINTER_NAME
+$bytes = [Convert]::FromBase64String($env:WIN_PRINTER_DATA)
 $src = @'
 using System;
 using System.Runtime.InteropServices;
@@ -9773,14 +9772,17 @@ Add-Type -TypeDefinition $src -Language CSharp
 async function printViaWindows(printerName, buf) {
   return new Promise((resolve, reject) => {
     const proc = (0, import_node_child_process.spawn)("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", "-"], {
-      env: { ...process.env, WIN_PRINTER_NAME: printerName }
+      env: {
+        ...process.env,
+        WIN_PRINTER_NAME: printerName,
+        WIN_PRINTER_DATA: buf.toString("base64")
+      }
     });
     let stderr = "";
     proc.stderr.on("data", (d) => {
       stderr += d.toString();
     });
-    proc.stdin.write(WIN_PRINT_PS + "\n");
-    proc.stdin.write(buf.toString("base64"));
+    proc.stdin.write(WIN_PRINT_PS);
     proc.stdin.end();
     proc.on("close", (code) => code === 0 ? resolve() : reject(new Error(`PowerShell saiu com c\xF3digo ${code}: ${stderr.trim()}`)));
     proc.on("error", reject);
