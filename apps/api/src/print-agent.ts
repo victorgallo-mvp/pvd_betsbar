@@ -36,9 +36,9 @@ const CHAR_COLS = PRINTER_WIDTH === 58 ? 32 : 48
 
 function fmt(n: number) { return `R$ ${n.toFixed(2).replace('.', ',')}` }
 
-// ─── Windows raw print via PowerShell ─────────────────────────
-// Reads the USB port name from WMI and writes ESC/POS bytes directly,
-// no native Node modules required.
+// ─── Windows raw print via winspool.drv (PowerShell + P/Invoke) ──
+// Sends ESC/POS bytes through the Windows print spooler with RAW type.
+// This is the same mechanism used by node-printer internally.
 async function printViaWin(printerName: string, buf: Buffer): Promise<void> {
   const ts      = Date.now()
   const binFile = join(tmpdir(), `pvd_${ts}.bin`)
@@ -46,22 +46,49 @@ async function printViaWin(printerName: string, buf: Buffer): Promise<void> {
 
   writeFileSync(binFile, buf)
 
-  // Escape single quotes in printer name
   const safeName = printerName.replace(/'/g, "''")
   const safeBin  = binFile.replace(/\\/g, '\\\\')
 
   const script = `
-$name = '${safeName}'
-$bin  = '${safeBin}'
-$p    = Get-WmiObject Win32_Printer | Where-Object { $_.Name -eq $name } | Select-Object -First 1
-if (-not $p) { Write-Error "Impressora nao encontrada: $name"; exit 1 }
-$port = $p.PortName
-$bytes = [IO.File]::ReadAllBytes($bin)
-$stream = [IO.File]::Open("\\\\.\\" + $port, [IO.FileMode]::Open, [IO.FileAccess]::Write, [IO.FileShare]::ReadWrite)
-$stream.Write($bytes, 0, $bytes.Length)
-$stream.Flush()
-$stream.Close()
-Remove-Item $bin -ErrorAction SilentlyContinue
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public class WinSpool {
+  [DllImport("winspool.drv", CharSet=CharSet.Auto, SetLastError=true)]
+  public static extern bool OpenPrinter(string name, out IntPtr handle, IntPtr def);
+  [DllImport("winspool.drv", CharSet=CharSet.Auto, SetLastError=true)]
+  public static extern bool ClosePrinter(IntPtr handle);
+  [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Auto)]
+  public struct DOCINFO { public string pDocName; public string pOutputFile; public string pDataType; }
+  [DllImport("winspool.drv", CharSet=CharSet.Auto, SetLastError=true)]
+  public static extern int StartDocPrinter(IntPtr handle, int level, ref DOCINFO di);
+  [DllImport("winspool.drv", SetLastError=true)]
+  public static extern bool EndDocPrinter(IntPtr handle);
+  [DllImport("winspool.drv", SetLastError=true)]
+  public static extern bool StartPagePrinter(IntPtr handle);
+  [DllImport("winspool.drv", SetLastError=true)]
+  public static extern bool EndPagePrinter(IntPtr handle);
+  [DllImport("winspool.drv", SetLastError=true)]
+  public static extern bool WritePrinter(IntPtr handle, IntPtr buf, int count, out int written);
+  public static bool Print(string printer, byte[] data) {
+    IntPtr h;
+    if (!OpenPrinter(printer, out h, IntPtr.Zero)) return false;
+    var di = new DOCINFO { pDocName="RAW", pOutputFile=null, pDataType="RAW" };
+    if (StartDocPrinter(h, 1, ref di) == 0) { ClosePrinter(h); return false; }
+    StartPagePrinter(h);
+    IntPtr p = Marshal.AllocCoTaskMem(data.Length);
+    Marshal.Copy(data, 0, p, data.Length);
+    int written; bool ok = WritePrinter(h, p, data.Length, out written);
+    Marshal.FreeCoTaskMem(p);
+    EndPagePrinter(h); EndDocPrinter(h); ClosePrinter(h);
+    return ok;
+  }
+}
+"@ -Language CSharp
+$bytes = [IO.File]::ReadAllBytes('${safeBin}')
+$ok = [WinSpool]::Print('${safeName}', $bytes)
+Remove-Item '${safeBin}' -ErrorAction SilentlyContinue
+if (-not $ok) { Write-Error "WinSpool::Print retornou false"; exit 1 }
 `
 
   writeFileSync(ps1File, script, 'utf8')
@@ -74,7 +101,7 @@ Remove-Item $bin -ErrorAction SilentlyContinue
       try { unlinkSync(ps1File) } catch { /* ignore */ }
       try { unlinkSync(binFile) } catch { /* ignore */ }
       if (code === 0) resolve()
-      else reject(new Error(`PowerShell print falhou (${code}): ${errs.join('')}`))
+      else reject(new Error(`WinSpool falhou (${code}): ${errs.join('')}`))
     })
     proc.on('error', reject)
   })
