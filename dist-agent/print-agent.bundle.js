@@ -9714,7 +9714,6 @@ var require_node_thermal_printer = __commonJS({
 var import_node_thermal_printer = __toESM(require_node_thermal_printer(), 1);
 var import_node_child_process = require("node:child_process");
 var import_node_fs = require("node:fs");
-var import_node_os = require("node:os");
 var import_node_path = require("node:path");
 var API_URL = (process.env.RAILWAY_API_URL ?? "http://localhost:3000").replace(/\/$/, "");
 var PRINTER_WIDTH = Number(process.env.PRINTER_WIDTH ?? 80);
@@ -9777,14 +9776,25 @@ Remove-Item -Force '${escaped}'
 `;
 }
 async function printViaWindows(printerName, buf) {
-  const tmpFile = (0, import_node_path.join)((0, import_node_os.tmpdir)(), `escpos_${Date.now()}.bin`);
-  (0, import_node_fs.writeFileSync)(tmpFile, buf);
+  const tempDir = process.env.TEMP ?? process.env.TMP ?? "C:\\Windows\\Temp";
+  const tmpFile = (0, import_node_path.join)(tempDir, `escpos_${Date.now()}.bin`);
+  console.log(`[agent] USB: tempDir=${tempDir} arquivo=${tmpFile} bytes=${buf.length}`);
+  try {
+    (0, import_node_fs.writeFileSync)(tmpFile, buf);
+    console.log(`[agent] USB: arquivo gravado OK`);
+  } catch (err) {
+    throw new Error(`Falha ao gravar arquivo temp: ${err.message}`);
+  }
   return new Promise((resolve, reject) => {
     const ps = buildWinPs(tmpFile, printerName);
     const proc = (0, import_node_child_process.spawn)("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", "-"]);
     let stderr = "";
+    let stdout = "";
     proc.stderr.on("data", (d) => {
       stderr += d.toString();
+    });
+    proc.stdout.on("data", (d) => {
+      stdout += d.toString();
     });
     proc.stdin.write(ps);
     proc.stdin.end();
@@ -9793,6 +9803,9 @@ async function printViaWindows(printerName, buf) {
         (0, import_node_fs.unlinkSync)(tmpFile);
       } catch {
       }
+      if (stdout.trim()) console.log(`[agent] PS stdout: ${stdout.trim()}`);
+      if (stderr.trim()) console.log(`[agent] PS stderr: ${stderr.trim()}`);
+      console.log(`[agent] PS exit: ${code}`);
       if (code === 0) resolve();
       else reject(new Error(`PowerShell saiu com c\xF3digo ${code}: ${stderr.trim()}`));
     });
