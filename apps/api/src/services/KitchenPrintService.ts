@@ -17,6 +17,7 @@ interface KitchenItem {
 interface KitchenPayload {
   saleId: string
   tableNumber: number | null
+  customerName: string | null
   saleType: string
   operatorName: string
   printedAt: string
@@ -24,7 +25,9 @@ interface KitchenPayload {
 }
 
 function buildLabel(payload: KitchenPayload): string {
-  if (payload.tableNumber) return `Mesa: ${payload.tableNumber}`
+  if (payload.tableNumber) {
+    return payload.customerName ? payload.customerName : `Mesa: ${payload.tableNumber}`
+  }
   if (payload.saleType === 'counter') return 'Balcao'
   return 'Delivery'
 }
@@ -134,6 +137,7 @@ export const KitchenPrintService = {
     const payload: KitchenPayload = {
       saleId: sale.id,
       tableNumber: sale.table?.number ?? null,
+      customerName: sale.customerName ?? null,
       saleType: sale.type,
       operatorName: sale.operator.name,
       printedAt: new Date().toISOString(),

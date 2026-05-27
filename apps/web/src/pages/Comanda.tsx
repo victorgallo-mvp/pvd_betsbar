@@ -92,14 +92,8 @@ export default function Comanda() {
 
   const handleConcluir = async () => {
     if (!saleId) return
-    const { printed, queued } = await concludeItems(saleId)
-    if (queued > 0) {
-      showToast('Impressora offline — pedido na fila, será impresso quando voltar', 'warning')
-    } else if (printed > 0) {
-      showToast('Pedido enviado pra cozinha ✓', 'success')
-    } else {
-      showToast('Pedido lançado ✓', 'success')
-    }
+    await concludeItems(saleId)
+    showToast('Pedido lançado ✓', 'success')
   }
 
   const handleConta = async () => {
