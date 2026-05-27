@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  ArrowLeft, Check, Receipt, CreditCard,
+  ArrowLeft, Check, Receipt,
   Plus, Minus, ArrowRightLeft, CheckCheck, ShoppingCart, List, DoorOpen,
 } from 'lucide-react'
 import { useSale } from '../stores/useSale'
@@ -109,11 +109,6 @@ export default function Comanda() {
     navigate('/mesa')
   }
 
-  const handlePagar = () => {
-    if (!saleId) return
-    navigate(`/pagamento/${saleId}`)
-  }
-
   const sale = currentSale
   const activeItems = sale?.items.filter((i) => !i.cancelled) ?? []
   const pendingCount = activeItems.filter((i) => !i.sentToProduction).length
@@ -184,14 +179,13 @@ export default function Comanda() {
   )
 
   const ActionBar = ({ tablet }: { tablet?: boolean }) => (
-    <div className={`${tablet ? 'grid grid-cols-6' : 'grid grid-cols-3'} gap-1 p-2 bg-slate-800 border-t border-slate-700 shrink-0`}>
+    <div className={`${tablet ? 'grid grid-cols-5' : 'grid grid-cols-3'} gap-1 p-2 bg-slate-800 border-t border-slate-700 shrink-0`}>
       {[
-        { icon: Receipt,        label: 'Conta',    action: handleConta,                    active: sale?.status !== 'awaiting_payment' },
+        { icon: Receipt,        label: 'Conta',    action: handleConta,                      active: sale?.status !== 'awaiting_payment' },
         { icon: DoorOpen,       label: 'Fechar',   action: () => setShowFecharConfirm(true), active: true },
-        { icon: CreditCard,     label: 'Pagar',    action: handlePagar,                    active: true },
-        { icon: Plus,           label: 'Qtde',     action: () => {},                       active: false },
-        { icon: ArrowRightLeft, label: 'Transf.',  action: () => {},                       active: false },
-        { icon: CheckCheck,     label: 'Lançar',   action: handleConcluir,                 active: pendingCount > 0 },
+        { icon: Plus,           label: 'Qtde',     action: () => {},                         active: false },
+        { icon: ArrowRightLeft, label: 'Transf.',  action: () => {},                         active: false },
+        { icon: CheckCheck,     label: 'Lançar',   action: handleConcluir,                   active: pendingCount > 0 },
       ].map(({ icon: Icon, label, action, active }) => (
         <button key={label} onClick={action} disabled={!active}
           className={`flex flex-col items-center justify-center gap-0.5 py-2 rounded-lg text-[10px] touch-btn
