@@ -150,7 +150,12 @@ export default function Comanda() {
             </div>
             {item.sentToProduction
               ? <Check size={14} className="text-emerald-400 shrink-0" />
-              : <button onClick={() => removeItem(saleId!, item.id)} className="text-slate-600 hover:text-rose-400 touch-btn shrink-0"><Minus size={14} /></button>
+              : (
+                <div className="flex items-center gap-1 shrink-0">
+                  <button onClick={() => removeItem(saleId!, item.id)} className="text-slate-600 hover:text-rose-400 touch-btn"><Minus size={14} /></button>
+                  <button onClick={() => handleAddProduct(item.productId)} disabled={addingItem === item.productId} className="text-slate-600 hover:text-emerald-400 touch-btn"><Plus size={14} /></button>
+                </div>
+              )
             }
             <span className="text-sm font-semibold text-slate-300 shrink-0 w-16 text-right">{fmtBRL(item.subtotal)}</span>
           </div>
@@ -179,11 +184,10 @@ export default function Comanda() {
   )
 
   const ActionBar = ({ tablet }: { tablet?: boolean }) => (
-    <div className={`${tablet ? 'grid grid-cols-5' : 'grid grid-cols-3'} gap-1 p-2 bg-slate-800 border-t border-slate-700 shrink-0`}>
+    <div className={`${tablet ? 'grid grid-cols-4' : 'grid grid-cols-2'} gap-1 p-2 bg-slate-800 border-t border-slate-700 shrink-0`}>
       {[
         { icon: Receipt,        label: 'Conta',    action: handleConta,                      active: sale?.status !== 'awaiting_payment' },
         { icon: DoorOpen,       label: 'Fechar',   action: () => setShowFecharConfirm(true), active: true },
-        { icon: Plus,           label: 'Qtde',     action: () => {},                         active: false },
         { icon: ArrowRightLeft, label: 'Transf.',  action: () => {},                         active: false },
         { icon: CheckCheck,     label: 'Lançar',   action: handleConcluir,                   active: pendingCount > 0 },
       ].map(({ icon: Icon, label, action, active }) => (
