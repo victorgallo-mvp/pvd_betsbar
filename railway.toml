@@ -1,5 +1,5 @@
 [build]
-builder = "nixpacks"
+builder = "RAILPACK"
 buildCommand = "pnpm --filter @pdv/shared run build && pnpm --filter api exec prisma generate && pnpm --filter api run build"
 
 [deploy]
