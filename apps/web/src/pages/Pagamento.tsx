@@ -4,6 +4,7 @@ import { ArrowLeft, Check, Users, DoorOpen } from 'lucide-react'
 import { useSale } from '../stores/useSale'
 import { useDevice } from '../hooks/useDevice'
 import { CurrencyKeypad, formatCents } from '../components/CurrencyKeypad'
+import { api } from '../lib/api'
 
 type Method = 'cash' | 'debit' | 'credit' | 'pix' | 'voucher' | 'conta_receita'
 
@@ -71,6 +72,9 @@ export default function Pagamento() {
     const result = await registerPayment(saleId, method, amountToApply / 100)
     if (result.status === 'paid') {
       setDone(true)
+      if (result.type !== 'table') {
+        api.post(`/print/sale/${saleId}`, {}).catch(() => {})
+      }
       const nextPath = result.type === 'table' ? '/mesa' : '/'
       setTimeout(() => { clearSale(); navigate(nextPath) }, 1500)
     } else {
