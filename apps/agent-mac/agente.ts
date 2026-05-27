@@ -156,6 +156,7 @@ async function printReceipt(payload: PrintPayload): Promise<void> {
 
 interface KitchenPayload {
   tableNumber: number | null
+  customerName: string | null
   saleType: string
   operatorName: string
   printedAt: string
@@ -169,7 +170,7 @@ async function printKitchen(payload: KitchenPayload): Promise<void> {
   if (!isConnected) throw new Error(`Impressora cozinha offline: ${KITCHEN_IFACE ?? `${KITCHEN_IP}:${KITCHEN_PORT}`}`)
 
   const label = payload.tableNumber
-    ? `Mesa: ${payload.tableNumber}`
+    ? (payload.customerName ?? `Mesa: ${payload.tableNumber}`)
     : payload.saleType === 'counter' ? 'Balcao' : 'Delivery'
 
   const time = new Date(payload.printedAt).toLocaleTimeString('pt-BR', {
