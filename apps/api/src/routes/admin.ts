@@ -94,6 +94,8 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     const body = request.body as { name: string; pin: string; role: string }
     if (!body.name || !body.pin || !body.role)
       return reply.status(400).send({ error: 'name, pin e role são obrigatórios' })
+    if (!/^\d{4,8}$/.test(body.pin))
+      return reply.status(400).send({ error: 'PIN deve ter entre 4 e 8 dígitos numéricos' })
     return reply.status(201).send(await AdminService.createUser(body))
   })
 
@@ -102,6 +104,8 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     const body = request.body as { name?: string; role?: string; active?: boolean; pin?: string }
     try {
       if (body.pin) {
+        if (!/^\d{4,8}$/.test(body.pin))
+          return reply.status(400).send({ error: 'PIN deve ter entre 4 e 8 dígitos numéricos' })
         await AdminService.changePin(id, body.pin)
         const { pin: _, ...rest } = body
         if (Object.keys(rest).length > 0) return AdminService.updateUser(id, rest)

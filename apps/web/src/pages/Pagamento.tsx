@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Check, Users } from 'lucide-react'
+import { ArrowLeft, Check, Users, DoorOpen } from 'lucide-react'
 import { useSale } from '../stores/useSale'
 import { useDevice } from '../hooks/useDevice'
 import { CurrencyKeypad, formatCents } from '../components/CurrencyKeypad'
@@ -23,7 +23,7 @@ function fmtBRL(n: number) {
 export default function Pagamento() {
   const { saleId } = useParams<{ saleId: string }>()
   const navigate = useNavigate()
-  const { saleOperator, currentSale, loadSale, registerPayment, isLoading } = useSale()
+  const { saleOperator, currentSale, loadSale, registerPayment, cancelSale, isLoading } = useSale()
   const { isPOS } = useDevice()
 
   const [cents, setCents] = useState(0)
@@ -31,6 +31,7 @@ export default function Pagamento() {
   const [done, setDone] = useState(false)
   const [splitPeople, setSplitPeople] = useState(1)
   const [darTroco, setDarTroco] = useState(true)
+  const [confirmClose, setConfirmClose] = useState(false)
 
   useEffect(() => { if (!saleOperator) navigate('/venda') }, [saleOperator, navigate])
   useEffect(() => { if (saleId) loadSale(saleId) }, [saleId, loadSale])
@@ -57,6 +58,12 @@ export default function Pagamento() {
     setSplitPeople(people)
     const curResidual = Math.max(0, totalCents - paidCents)
     setCents(Math.round(curResidual / people))
+  }
+
+  const handleEncerrarMesa = async () => {
+    if (!saleId) return
+    await cancelSale(saleId)
+    navigate('/mesa')
   }
 
   const handleOk = async () => {
@@ -91,6 +98,35 @@ export default function Pagamento() {
     )
   }
 
+  // ── Encerrar Mesa ─────────────────────────────────────────
+
+  const encerrarModal = confirmClose && (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-800 rounded-2xl p-6 flex flex-col gap-4 max-w-sm w-full border border-slate-700 shadow-2xl">
+        <div className="flex items-center gap-3">
+          <DoorOpen size={22} className="text-rose-400 shrink-0" />
+          <span className="text-slate-100 font-semibold">Encerrar mesa sem pagamento?</span>
+        </div>
+        <p className="text-slate-400 text-sm">A venda será cancelada e a mesa ficará livre.</p>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setConfirmClose(false)}
+            className="flex-1 py-3 rounded-xl bg-slate-700 text-slate-300 font-medium touch-btn"
+          >
+            Voltar
+          </button>
+          <button
+            onClick={handleEncerrarMesa}
+            disabled={isLoading}
+            className="flex-1 py-3 rounded-xl bg-rose-700 hover:bg-rose-600 text-white font-bold touch-btn disabled:opacity-40"
+          >
+            Encerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+
   // ── Shared atoms ──────────────────────────────────────────
 
   const topBar = (
@@ -103,6 +139,15 @@ export default function Pagamento() {
       </span>
       <span className="text-slate-400 text-sm flex-1">Pagamento</span>
       <span className="text-slate-500 text-xs">{saleOperator?.name}</span>
+      {sale?.type === 'table' && (
+        <button
+          onClick={() => setConfirmClose(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-900/50 hover:bg-rose-900 text-rose-400 text-xs font-medium touch-btn border border-rose-800"
+        >
+          <DoorOpen size={14} />
+          Encerrar Mesa
+        </button>
+      )}
     </div>
   )
 
@@ -203,11 +248,19 @@ export default function Pagamento() {
     </button>
   )
 
+  const emptyTableBanner = totalCents === 0 && sale?.type === 'table' && (
+    <div className="mx-3 mt-3 p-3 rounded-xl bg-amber-900/40 border border-amber-700 text-amber-300 text-sm text-center">
+      Mesa sem consumo — use <strong>Encerrar Mesa</strong> no topo para liberar a mesa.
+    </div>
+  )
+
   // ── POS portrait: vertical stack matching Stone POS ───────
   if (isPOS) {
     return (
       <div className="h-full flex flex-col bg-slate-900">
+        {encerrarModal}
         {topBar}
+        {emptyTableBanner}
         <div className="flex-1 overflow-y-auto flex flex-col gap-3 p-3">
           {valorTroco}
           {splitControl}
@@ -238,7 +291,9 @@ export default function Pagamento() {
   // ── Tablet landscape: 3-column ────────────────────────────
   return (
     <div className="h-full flex flex-col bg-slate-900">
+      {encerrarModal}
       {topBar}
+      {emptyTableBanner}
       <div className="flex-1 flex min-h-0">
         {/* LEFT — sale summary */}
         <div className="w-[22%] flex flex-col border-r border-slate-700 p-3 gap-2 min-h-0">
