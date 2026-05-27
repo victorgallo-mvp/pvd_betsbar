@@ -23,7 +23,7 @@ function fmtBRL(n: number) {
 export default function Pagamento() {
   const { saleId } = useParams<{ saleId: string }>()
   const navigate = useNavigate()
-  const { saleOperator, currentSale, loadSale, registerPayment, cancelSale, isLoading } = useSale()
+  const { saleOperator, currentSale, loadSale, registerPayment, cancelSale, clearSale, isLoading } = useSale()
   const { isPOS } = useDevice()
 
   const [cents, setCents] = useState(0)
@@ -71,8 +71,8 @@ export default function Pagamento() {
     const result = await registerPayment(saleId, method, amountToApply / 100)
     if (result.status === 'paid') {
       setDone(true)
-      const trocoVal = darTroco ? trocoCents : 0
-      setTimeout(() => navigate(`/print-confirm/${saleId}`, { state: { trocoCents: trocoVal } }), 1500)
+      const nextPath = result.type === 'table' ? '/mesa' : '/'
+      setTimeout(() => { clearSale(); navigate(nextPath) }, 1500)
     } else {
       // partial — reload, decrement split, recalc
       await loadSale(saleId)
