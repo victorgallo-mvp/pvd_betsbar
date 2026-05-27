@@ -96,7 +96,9 @@ export default function Pagamento() {
             <Check size={44} className="text-white" />
           </div>
           <div className="text-2xl font-bold text-emerald-400">Pagamento confirmado!</div>
-          <div className="text-slate-400 text-sm">Gerando comprovante...</div>
+          <div className="text-slate-400 text-sm">
+            {sale?.type === 'table' ? 'Encerrando mesa...' : 'Gerando comprovante...'}
+          </div>
         </div>
       </div>
     )

@@ -59,7 +59,7 @@ export default function App() {
       <Route path="/consulta"           element={<RequireRole min="waiter"><Consulta /></RequireRole>} />
 
       {/* operator+ */}
-      <Route path="/pagamento/:saleId"  element={<RequireRole min="operator"><Pagamento /></RequireRole>} />
+      <Route path="/pagamento/:saleId"  element={<RequireRole min="waiter"><Pagamento /></RequireRole>} />
       <Route path="/print-confirm/:saleId" element={<RequireRole min="operator"><PrintConfirm /></RequireRole>} />
       <Route path="/caixa"              element={<RequireRole min="operator"><FundoCaixa /></RequireRole>} />
       <Route path="/sangria"            element={<RequireRole min="operator"><Sangria /></RequireRole>} />
