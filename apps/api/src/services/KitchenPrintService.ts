@@ -186,6 +186,7 @@ export const KitchenPrintService = {
     const testPayload: KitchenPayload = {
       saleId: 'test',
       tableNumber: null,
+      customerName: null,
       saleType: 'counter',
       operatorName: 'Teste',
       printedAt: new Date().toISOString(),
