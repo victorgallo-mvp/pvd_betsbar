@@ -19,8 +19,7 @@ function CancelItemDialog({ item, onConfirm, onClose }: { item: SaleItemDTO; onC
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
       <div className="bg-slate-800 rounded-2xl p-6 w-80 shadow-2xl border border-slate-700">
         <h2 className="text-lg font-bold text-slate-100 mb-1">Cancelar item?</h2>
-        <p className="text-slate-400 text-sm mb-1">{item.qty}× <span className="text-slate-200 font-medium">{item.productName}</span></p>
-        <p className="text-slate-500 text-xs mb-5">Um aviso de cancelamento será enviado para a cozinha.</p>
+        <p className="text-slate-400 text-sm mb-5">{item.qty}× <span className="text-slate-200 font-medium">{item.productName}</span></p>
         <div className="flex gap-3">
           <button onClick={onClose} className="flex-1 py-2 rounded-xl bg-slate-700 text-slate-300 touch-btn">Voltar</button>
           <button onClick={onConfirm} className="flex-1 py-2 rounded-xl bg-rose-700 text-white font-bold touch-btn">Cancelar</button>
