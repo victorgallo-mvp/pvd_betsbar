@@ -299,6 +299,41 @@ export const SaleService = {
     }
   },
 
+  // Cancel a sent item — marks cancelled + queues kitchen cancel notice
+  async cancelItem(saleId: string, itemId: string) {
+    const item = await prisma.saleItem.findUniqueOrThrow({
+      where: { id: itemId },
+      include: {
+        product: true,
+        sale: { include: { operator: true, table: true } },
+      },
+    })
+
+    await prisma.saleItem.update({ where: { id: itemId }, data: { cancelled: true } })
+
+    if (item.sentToProduction) {
+      const s = item.sale
+      await prisma.printJob.create({
+        data: {
+          saleId,
+          type: 'kitchen_cancel',
+          status: 'pending',
+          triggerEvent: 'item_cancelled',
+          payload: JSON.stringify({
+            tableNumber: s.table?.number ?? null,
+            customerName: s.customerName ?? null,
+            saleType: s.type,
+            operatorName: s.operator.name,
+            cancelledAt: new Date().toISOString(),
+            items: [{ qty: item.qty, name: item.product.name }],
+          }),
+        },
+      })
+    }
+
+    return SaleService.recalcAndGet(saleId)
+  },
+
   // Recalc totals and return updated sale
   async recalcAndGet(saleId: string) {
     const items = await prisma.saleItem.findMany({

@@ -25,6 +25,7 @@ interface SaleState {
 
   addItem: (saleId: string, productId: string) => Promise<void>
   removeItem: (saleId: string, itemId: string) => Promise<void>
+  cancelItem: (saleId: string, itemId: string) => Promise<void>
   concludeItems: (saleId: string) => Promise<{ printed: number; queued: number }>
   requestBill: (saleId: string, peopleCount: number) => Promise<void>
   cancelSale: (saleId: string) => Promise<void>
@@ -84,6 +85,15 @@ export const useSale = create<SaleState>((set) => ({
   removeItem: async (saleId, itemId) => {
     try {
       const sale = await api.delete<SaleDTO>(`/sales/${saleId}/items/${itemId}`)
+      set({ currentSale: sale })
+    } catch (err) {
+      set({ error: (err as Error).message })
+    }
+  },
+
+  cancelItem: async (saleId, itemId) => {
+    try {
+      const sale = await api.patch<SaleDTO>(`/sales/${saleId}/items/${itemId}/cancel`, {})
       set({ currentSale: sale })
     } catch (err) {
       set({ error: (err as Error).message })

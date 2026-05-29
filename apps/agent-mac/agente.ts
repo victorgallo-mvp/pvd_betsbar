@@ -231,10 +231,61 @@ async function markJob(jobId: string, action: 'printed' | 'skipped') {
   })
 }
 
+interface KitchenCancelPayload {
+  tableNumber: number | null
+  customerName: string | null
+  saleType: string
+  operatorName: string
+  cancelledAt: string
+  items: { qty: number; name: string }[]
+}
+
+async function printKitchenCancel(payload: KitchenCancelPayload): Promise<void> {
+  const printer = makePrinter(KITCHEN_IP, KITCHEN_PORT, 48, KITCHEN_IFACE)
+  const isConnected = await printer.isPrinterConnected()
+  if (!isConnected) throw new Error(`Impressora cozinha offline`)
+
+  const label = payload.tableNumber
+    ? (payload.customerName ?? `Mesa: ${payload.tableNumber}`)
+    : payload.saleType === 'counter' ? 'Balcao' : 'Delivery'
+
+  const time = new Date(payload.cancelledAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+
+  printer.alignCenter()
+  printer.setTextDoubleHeight()
+  printer.bold(true)
+  printer.println('*** CANCELAR ***')
+  printer.bold(false)
+  printer.setTextNormal()
+  printer.drawLine()
+  printer.alignLeft()
+  printer.bold(true)
+  printer.println(label)
+  printer.bold(false)
+  printer.println(`Garcom: ${payload.operatorName}   ${time}`)
+  printer.drawLine()
+
+  for (const item of payload.items) {
+    printer.setTextDoubleHeight()
+    printer.bold(true)
+    printer.println(`${item.qty}x  ${item.name.toUpperCase()}`)
+    printer.setTextNormal()
+    printer.bold(false)
+  }
+
+  printer.drawLine()
+  printer.newLine()
+  printer.cut()
+  await printer.execute()
+  printer.clear()
+}
+
 async function processJob(job: PrintJob): Promise<void> {
   const payload = JSON.parse(job.payload)
   if (job.type === 'kitchen') {
     await printKitchen(payload as KitchenPayload)
+  } else if (job.type === 'kitchen_cancel') {
+    await printKitchenCancel(payload as KitchenCancelPayload)
   } else {
     await printReceipt(payload as PrintPayload)
   }

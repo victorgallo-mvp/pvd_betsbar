@@ -66,6 +66,16 @@ export const salesRoutes: FastifyPluginAsync = async (app) => {
     return SaleService.requestBill(id, parsed.data)
   })
 
+  // PATCH /sales/:id/items/:itemId/cancel — cancel a sent item + queue kitchen cancel notice
+  app.patch('/:id/items/:itemId/cancel', async (request, reply) => {
+    const { id, itemId } = request.params as { id: string; itemId: string }
+    try {
+      return await SaleService.cancelItem(id, itemId)
+    } catch (err) {
+      return reply.status(400).send({ error: (err as Error).message })
+    }
+  })
+
   // DELETE /sales/:id — cancel sale + free table
   app.delete('/:id', async (request, reply) => {
     const { id } = request.params as { id: string }

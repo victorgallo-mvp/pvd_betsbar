@@ -1,17 +1,33 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  ArrowLeft, Check, Receipt,
+  ArrowLeft, Check, Receipt, X,
   Plus, Minus, ArrowRightLeft, CheckCheck, ShoppingCart, List, DoorOpen,
 } from 'lucide-react'
 import { useSale } from '../stores/useSale'
 import { useDevice } from '../hooks/useDevice'
-import type { CategoryDTO, ProductDTO } from '@pdv/shared'
+import type { CategoryDTO, ProductDTO, SaleItemDTO } from '@pdv/shared'
 import { api } from '../lib/api'
 
 
 function fmtBRL(n: number) {
   return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+function CancelItemDialog({ item, onConfirm, onClose }: { item: SaleItemDTO; onConfirm: () => void; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+      <div className="bg-slate-800 rounded-2xl p-6 w-80 shadow-2xl border border-slate-700">
+        <h2 className="text-lg font-bold text-slate-100 mb-1">Cancelar item?</h2>
+        <p className="text-slate-400 text-sm mb-1">{item.qty}× <span className="text-slate-200 font-medium">{item.productName}</span></p>
+        <p className="text-slate-500 text-xs mb-5">Um aviso de cancelamento será enviado para a cozinha.</p>
+        <div className="flex gap-3">
+          <button onClick={onClose} className="flex-1 py-2 rounded-xl bg-slate-700 text-slate-300 touch-btn">Voltar</button>
+          <button onClick={onConfirm} className="flex-1 py-2 rounded-xl bg-rose-700 text-white font-bold touch-btn">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function FecharMesaDialog({ onConfirm, onClose }: { onConfirm: () => void; onClose: () => void }) {
@@ -48,7 +64,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 export default function Comanda() {
   const { saleId } = useParams<{ saleId: string }>()
   const navigate = useNavigate()
-  const { saleOperator, currentSale, loadSale, addItem, removeItem, concludeItems, requestBill, cancelSale } =
+  const { saleOperator, currentSale, loadSale, addItem, removeItem, cancelItem, concludeItems, requestBill, cancelSale } =
     useSale()
   const { isPOS } = useDevice()
 
@@ -57,6 +73,7 @@ export default function Comanda() {
   const [selectedCat, setSelectedCat] = useState<string | null>(null)
   const [showFecharConfirm, setShowFecharConfirm] = useState(false)
   const [addingItem, setAddingItem] = useState<string | null>(null)
+  const [cancelingItem, setCancelingItem] = useState<string | null>(null)
   const [posTab, setPosTab] = useState<'products' | 'pedido'>('products')
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'warning' } | null>(null)
 
@@ -149,7 +166,12 @@ export default function Comanda() {
               <div className="text-xs text-slate-500">{item.qty} × {fmtBRL(item.unitPrice)}</div>
             </div>
             {item.sentToProduction
-              ? <Check size={14} className="text-emerald-400 shrink-0" />
+              ? (
+                <div className="flex items-center gap-1 shrink-0">
+                  <Check size={14} className="text-emerald-400" />
+                  <button onClick={() => setCancelingItem(item.id)} className="text-slate-600 hover:text-rose-400 touch-btn"><X size={14} /></button>
+                </div>
+              )
               : (
                 <div className="flex items-center gap-1 shrink-0">
                   <button onClick={() => removeItem(saleId!, item.id)} className="text-slate-600 hover:text-rose-400 touch-btn"><Minus size={14} /></button>
@@ -281,6 +303,11 @@ export default function Comanda() {
           </button>
         </div>
         {showFecharConfirm && <FecharMesaDialog onConfirm={handleFecharMesa} onClose={() => setShowFecharConfirm(false)} />}
+        {cancelingItem && <CancelItemDialog
+          item={activeItems.find(i => i.id === cancelingItem)!}
+          onConfirm={async () => { await cancelItem(saleId!, cancelingItem); setCancelingItem(null); showToast('Item cancelado — aviso enviado para cozinha', 'warning') }}
+          onClose={() => setCancelingItem(null)}
+        />}
       </div>
     )
   }
@@ -299,6 +326,11 @@ export default function Comanda() {
         <ProductPanel />
       </div>
       {showFecharConfirm && <FecharMesaDialog onConfirm={handleFecharMesa} onClose={() => setShowFecharConfirm(false)} />}
+      {cancelingItem && <CancelItemDialog
+        item={activeItems.find(i => i.id === cancelingItem)!}
+        onConfirm={async () => { await cancelItem(saleId!, cancelingItem); setCancelingItem(null); showToast('Item cancelado — aviso enviado para cozinha', 'warning') }}
+        onClose={() => setCancelingItem(null)}
+      />}
     </div>
   )
 }
