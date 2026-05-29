@@ -305,7 +305,7 @@ export default function Comanda() {
         {showFecharConfirm && <FecharMesaDialog onConfirm={handleFecharMesa} onClose={() => setShowFecharConfirm(false)} />}
         {cancelingItem && <CancelItemDialog
           item={activeItems.find(i => i.id === cancelingItem)!}
-          onConfirm={async () => { await cancelItem(saleId!, cancelingItem); setCancelingItem(null); showToast('Item cancelado — aviso enviado para cozinha', 'warning') }}
+          onConfirm={async () => { const id = cancelingItem; setCancelingItem(null); await cancelItem(saleId!, id); showToast('Item cancelado — aviso enviado para cozinha', 'warning') }}
           onClose={() => setCancelingItem(null)}
         />}
       </div>
