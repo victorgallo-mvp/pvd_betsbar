@@ -317,7 +317,7 @@ export const SaleService = {
       await prisma.printJob.create({
         data: {
           saleId,
-          type: 'kitchen_cancel',
+          type: 'kitchen',
           status: 'pending',
           triggerEvent: 'item_cancelled',
           payload: JSON.stringify({
@@ -325,8 +325,8 @@ export const SaleService = {
             customerName: s.customerName ?? null,
             saleType: s.type,
             operatorName: s.operator.name,
-            cancelledAt: new Date().toISOString(),
-            items: [{ qty: item.qty, name: item.product.name }],
+            printedAt: new Date().toISOString(),
+            items: [{ qty: item.qty, name: `[CANCELAR] ${item.product.name}`, notes: null }],
           }),
         },
       })
