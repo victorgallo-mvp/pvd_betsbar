@@ -73,7 +73,7 @@ export default function Comanda() {
   const [selectedCat, setSelectedCat] = useState<string | null>(null)
   const [showFecharConfirm, setShowFecharConfirm] = useState(false)
   const [addingItem, setAddingItem] = useState<string | null>(null)
-  const [cancelingItem, setCancelingItem] = useState<string | null>(null)
+  const [cancelingItem, setCancelingItem] = useState<SaleItemDTO | null>(null)
   const [posTab, setPosTab] = useState<'products' | 'pedido'>('products')
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'warning' } | null>(null)
 
@@ -169,7 +169,7 @@ export default function Comanda() {
               ? (
                 <div className="flex items-center gap-1 shrink-0">
                   <Check size={14} className="text-emerald-400" />
-                  <button onClick={() => setCancelingItem(item.id)} className="text-slate-600 hover:text-rose-400 touch-btn"><X size={14} /></button>
+                  <button onClick={() => setCancelingItem(item)} className="text-slate-600 hover:text-rose-400 touch-btn"><X size={14} /></button>
                 </div>
               )
               : (
@@ -304,8 +304,8 @@ export default function Comanda() {
         </div>
         {showFecharConfirm && <FecharMesaDialog onConfirm={handleFecharMesa} onClose={() => setShowFecharConfirm(false)} />}
         {cancelingItem && <CancelItemDialog
-          item={activeItems.find(i => i.id === cancelingItem)!}
-          onConfirm={async () => { const id = cancelingItem; setCancelingItem(null); await cancelItem(saleId!, id); showToast('Item cancelado — aviso enviado para cozinha', 'warning') }}
+          item={cancelingItem}
+          onConfirm={async () => { const id = cancelingItem.id; setCancelingItem(null); await cancelItem(saleId!, id); showToast('Item cancelado — aviso enviado para cozinha', 'warning') }}
           onClose={() => setCancelingItem(null)}
         />}
       </div>
@@ -327,8 +327,8 @@ export default function Comanda() {
       </div>
       {showFecharConfirm && <FecharMesaDialog onConfirm={handleFecharMesa} onClose={() => setShowFecharConfirm(false)} />}
       {cancelingItem && <CancelItemDialog
-        item={activeItems.find(i => i.id === cancelingItem)!}
-        onConfirm={async () => { await cancelItem(saleId!, cancelingItem); setCancelingItem(null); showToast('Item cancelado — aviso enviado para cozinha', 'warning') }}
+        item={cancelingItem}
+        onConfirm={async () => { const id = cancelingItem.id; setCancelingItem(null); await cancelItem(saleId!, id); showToast('Item cancelado — aviso enviado para cozinha', 'warning') }}
         onClose={() => setCancelingItem(null)}
       />}
     </div>
