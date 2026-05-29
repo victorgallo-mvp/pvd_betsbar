@@ -305,7 +305,7 @@ export default function Comanda() {
         {showFecharConfirm && <FecharMesaDialog onConfirm={handleFecharMesa} onClose={() => setShowFecharConfirm(false)} />}
         {cancelingItem && <CancelItemDialog
           item={cancelingItem}
-          onConfirm={async () => { const id = cancelingItem.id; setCancelingItem(null); await cancelItem(saleId!, id); showToast('Item cancelado — aviso enviado para cozinha', 'warning') }}
+          onConfirm={async () => { const snap = cancelingItem; setCancelingItem(null); await cancelItem(saleId!, snap.id); showToast(snap.sentToProduction && snap.sendToKitchen ? 'Item cancelado — aviso enviado para cozinha' : 'Item cancelado', 'warning') }}
           onClose={() => setCancelingItem(null)}
         />}
       </div>
@@ -328,7 +328,7 @@ export default function Comanda() {
       {showFecharConfirm && <FecharMesaDialog onConfirm={handleFecharMesa} onClose={() => setShowFecharConfirm(false)} />}
       {cancelingItem && <CancelItemDialog
         item={cancelingItem}
-        onConfirm={async () => { const id = cancelingItem.id; setCancelingItem(null); await cancelItem(saleId!, id); showToast('Item cancelado — aviso enviado para cozinha', 'warning') }}
+        onConfirm={async () => { const snap = cancelingItem; setCancelingItem(null); await cancelItem(saleId!, snap.id); showToast(snap.sentToProduction && snap.sendToKitchen ? 'Item cancelado — aviso enviado para cozinha' : 'Item cancelado', 'warning') }}
         onClose={() => setCancelingItem(null)}
       />}
     </div>

@@ -58,6 +58,7 @@ function saleToDTO(s: SaleRow) {
       subtotal: Number(i.unitPrice) * i.qty,
       sentToProduction: i.sentToProduction,
       cancelled: i.cancelled,
+      sendToKitchen: i.product.sendToKitchen,
       notes: i.notes,
     })),
     payments: s.payments.map((p) => ({

@@ -99,6 +99,7 @@ export interface SaleItemDTO {
   subtotal: number
   sentToProduction: boolean
   cancelled: boolean
+  sendToKitchen: boolean
   notes: string | null
 }
 
