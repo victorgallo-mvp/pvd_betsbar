@@ -311,7 +311,7 @@ export const SaleService = {
 
     await prisma.saleItem.update({ where: { id: itemId }, data: { cancelled: true } })
 
-    if (item.sentToProduction) {
+    if (item.sentToProduction && item.product.sendToKitchen) {
       const s = item.sale
       await prisma.printJob.create({
         data: {
