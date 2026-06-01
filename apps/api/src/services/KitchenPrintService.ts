@@ -142,11 +142,14 @@ export const KitchenPrintService = {
       saleType: sale.type,
       operatorName: sale.operator.name,
       printedAt: new Date().toISOString(),
-      items: kitchenItems.map((i) => ({
-        qty: i.qty,
-        name: i.product.name,
-        notes: i.notes,
-      })),
+      items: [
+        ...(sale.customerName ? [{ qty: 1, name: `CLIENTE: ${sale.customerName}`, notes: null }] : []),
+        ...kitchenItems.map((i) => ({
+          qty: i.qty,
+          name: i.product.name,
+          notes: i.notes,
+        })),
+      ],
     }
 
     // Mark ALL pending items as sent to production (including non-kitchen ones).
