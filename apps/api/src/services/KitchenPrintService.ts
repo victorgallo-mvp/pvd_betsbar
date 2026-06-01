@@ -88,6 +88,7 @@ async function sendToKitchenPrinter(payload: KitchenPayload): Promise<void> {
   printer.bold(true)
   printer.println(buildLabel(payload))
   printer.bold(false)
+  if (payload.tableNumber && payload.customerName) printer.println(`Mesa: ${payload.tableNumber}`)
   printer.println(`Garcao: ${payload.operatorName}   ${time}`)
   printer.drawLine()
 

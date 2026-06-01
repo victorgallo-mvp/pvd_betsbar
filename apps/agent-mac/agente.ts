@@ -185,10 +185,13 @@ async function printKitchen(payload: KitchenPayload): Promise<void> {
   printer.setTextNormal()
   printer.drawLine()
 
+  const subLabel = payload.tableNumber && payload.customerName ? `Mesa: ${payload.tableNumber}` : null
+
   printer.alignLeft()
   printer.bold(true)
   printer.println(label)
   printer.bold(false)
+  if (subLabel) printer.println(subLabel)
   printer.println(`Garcom: ${payload.operatorName}   ${time}`)
   printer.drawLine()
 
