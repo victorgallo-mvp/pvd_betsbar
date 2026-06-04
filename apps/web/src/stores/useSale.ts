@@ -23,7 +23,7 @@ interface SaleState {
     customerAddress?: string
   }) => Promise<SaleDTO>
 
-  addItem: (saleId: string, productId: string) => Promise<void>
+  addItem: (saleId: string, productId: string, qty?: number) => Promise<void>
   removeItem: (saleId: string, itemId: string) => Promise<void>
   cancelItem: (saleId: string, itemId: string) => Promise<void>
   concludeItems: (saleId: string) => Promise<{ printed: number; queued: number }>
@@ -70,11 +70,11 @@ export const useSale = create<SaleState>((set) => ({
     }
   },
 
-  addItem: async (saleId, productId) => {
+  addItem: async (saleId, productId, qty = 1) => {
     try {
       const sale = await api.post<SaleDTO>(`/sales/${saleId}/items`, {
         productId,
-        qty: 1,
+        qty,
       })
       set({ currentSale: sale })
     } catch (err) {

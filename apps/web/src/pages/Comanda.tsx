@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Check, Receipt, X,
@@ -12,6 +12,51 @@ import { api } from '../lib/api'
 
 function fmtBRL(n: number) {
   return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+function AddQtyDialog({ product, onConfirm, onClose }: {
+  product: ProductDTO
+  onConfirm: (qty: number) => void
+  onClose: () => void
+}) {
+  const [qty, setQty] = useState(1)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const startRepeat = (fn: () => void) => {
+    fn()
+    intervalRef.current = setInterval(fn, 150)
+  }
+  const stopRepeat = () => {
+    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+      <div className="bg-slate-800 rounded-2xl p-6 w-80 shadow-2xl border border-slate-700">
+        <h2 className="text-lg font-bold text-slate-100 leading-tight">{product.name}</h2>
+        <p className="text-emerald-400 font-semibold text-sm mb-6">{fmtBRL(product.price)} / un.</p>
+        <div className="flex items-center justify-between mb-6">
+          <button
+            onPointerDown={() => startRepeat(() => setQty(q => Math.max(1, q - 1)))}
+            onPointerUp={stopRepeat} onPointerLeave={stopRepeat}
+            className="w-14 h-14 flex items-center justify-center rounded-xl bg-slate-700 hover:bg-rose-700 active:bg-rose-600 text-slate-200 text-3xl font-bold touch-btn select-none"
+          >−</button>
+          <span className="text-5xl font-bold text-slate-100 w-20 text-center tabular-nums">{qty}</span>
+          <button
+            onPointerDown={() => startRepeat(() => setQty(q => q + 1))}
+            onPointerUp={stopRepeat} onPointerLeave={stopRepeat}
+            className="w-14 h-14 flex items-center justify-center rounded-xl bg-slate-700 hover:bg-emerald-700 active:bg-emerald-600 text-slate-200 text-3xl font-bold touch-btn select-none"
+          >+</button>
+        </div>
+        <div className="flex gap-3">
+          <button onClick={onClose} className="flex-1 py-3 rounded-xl bg-slate-700 text-slate-300 font-medium touch-btn">Voltar</button>
+          <button onClick={() => onConfirm(qty)} className="flex-1 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold touch-btn">
+            Adicionar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function CancelItemDialog({ item, onConfirm, onClose }: { item: SaleItemDTO; onConfirm: () => void; onClose: () => void }) {
@@ -73,6 +118,7 @@ export default function Comanda() {
   const [showFecharConfirm, setShowFecharConfirm] = useState(false)
   const [addingItem, setAddingItem] = useState<string | null>(null)
   const [cancelingItem, setCancelingItem] = useState<SaleItemDTO | null>(null)
+  const [pendingProduct, setPendingProduct] = useState<ProductDTO | null>(null)
   const [posTab, setPosTab] = useState<'products' | 'pedido'>('products')
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'warning' } | null>(null)
 
@@ -94,10 +140,10 @@ export default function Comanda() {
     api.get<ProductDTO[]>(`/products${query}`).then(setProducts)
   }, [selectedCat])
 
-  const handleAddProduct = async (productId: string) => {
+  const handleAddProduct = async (productId: string, qty = 1) => {
     if (!saleId || addingItem) return
     setAddingItem(productId)
-    await addItem(saleId, productId)
+    await addItem(saleId, productId, qty)
     setAddingItem(null)
   }
 
@@ -166,15 +212,25 @@ export default function Comanda() {
             </div>
             {item.sentToProduction
               ? (
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <Check size={14} className="text-emerald-400" />
-                  <button onClick={() => setCancelingItem(item)} className="text-slate-600 hover:text-rose-400 touch-btn"><X size={14} /></button>
+                  <button
+                    onClick={() => setCancelingItem(item)}
+                    className="w-9 h-9 flex items-center justify-center rounded-xl bg-rose-900/40 hover:bg-rose-700 active:bg-rose-600 text-rose-400 hover:text-white touch-btn"
+                  ><X size={16} /></button>
                 </div>
               )
               : (
-                <div className="flex items-center gap-1 shrink-0">
-                  <button onClick={() => removeItem(saleId!, item.id)} className="text-slate-600 hover:text-rose-400 touch-btn"><Minus size={14} /></button>
-                  <button onClick={() => handleAddProduct(item.productId)} disabled={addingItem === item.productId} className="text-slate-600 hover:text-emerald-400 touch-btn"><Plus size={14} /></button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    onClick={() => removeItem(saleId!, item.id)}
+                    className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-700 hover:bg-rose-700 active:bg-rose-600 text-slate-300 hover:text-white touch-btn"
+                  ><Minus size={16} /></button>
+                  <button
+                    onClick={() => handleAddProduct(item.productId)}
+                    disabled={addingItem === item.productId}
+                    className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-700 hover:bg-emerald-700 active:bg-emerald-600 text-slate-300 hover:text-white disabled:opacity-40 touch-btn"
+                  ><Plus size={16} /></button>
                 </div>
               )
             }
@@ -243,9 +299,8 @@ export default function Comanda() {
       </div>
       <div className="flex-1 overflow-y-auto grid grid-cols-2 gap-1 p-2 content-start">
         {products.map((prod) => (
-          <button key={prod.id} onClick={() => handleAddProduct(prod.id)} disabled={addingItem === prod.id}
-            className={`flex flex-col items-start p-3 rounded-lg border text-left touch-btn
-              ${addingItem === prod.id ? 'bg-emerald-900 border-emerald-600 opacity-70' : 'bg-slate-800 border-slate-700 hover:bg-slate-700'}`}>
+          <button key={prod.id} onClick={() => setPendingProduct(prod)}
+            className="flex flex-col items-start p-3 rounded-lg border text-left touch-btn bg-slate-800 border-slate-700 hover:bg-slate-700 active:bg-slate-600">
             <span className="text-sm font-medium text-slate-200 leading-tight">{prod.name}</span>
             <span className="text-emerald-400 font-bold text-sm mt-1">{fmtBRL(prod.price)}</span>
           </button>
@@ -307,6 +362,11 @@ export default function Comanda() {
           onConfirm={async () => { const snap = cancelingItem; setCancelingItem(null); await cancelItem(saleId!, snap.id); showToast(snap.sentToProduction && snap.sendToKitchen ? 'Item cancelado — aviso enviado para cozinha' : 'Item cancelado', 'warning') }}
           onClose={() => setCancelingItem(null)}
         />}
+        {pendingProduct && <AddQtyDialog
+          product={pendingProduct}
+          onConfirm={async (qty) => { const prod = pendingProduct; setPendingProduct(null); await handleAddProduct(prod.id, qty) }}
+          onClose={() => setPendingProduct(null)}
+        />}
       </div>
     )
   }
@@ -329,6 +389,11 @@ export default function Comanda() {
         item={cancelingItem}
         onConfirm={async () => { const snap = cancelingItem; setCancelingItem(null); await cancelItem(saleId!, snap.id); showToast(snap.sentToProduction && snap.sendToKitchen ? 'Item cancelado — aviso enviado para cozinha' : 'Item cancelado', 'warning') }}
         onClose={() => setCancelingItem(null)}
+      />}
+      {pendingProduct && <AddQtyDialog
+        product={pendingProduct}
+        onConfirm={async (qty) => { const prod = pendingProduct; setPendingProduct(null); await handleAddProduct(prod.id, qty) }}
+        onClose={() => setPendingProduct(null)}
       />}
     </div>
   )
