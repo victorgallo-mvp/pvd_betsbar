@@ -29,7 +29,7 @@ export const ReportService = {
 
   async getByPaymentMethod(from: Date, to: Date) {
     const payments = await prisma.payment.findMany({
-      where: { paidAt: { gte: from, lte: to } },
+      where: { sale: { status: 'paid', closedAt: { gte: from, lte: to } } },
     })
 
     const grouped: Record<string, { method: string; count: number; total: number }> = {}

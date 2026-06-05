@@ -1,16 +1,13 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { ReportService } from '../services/ReportService.js'
 
+// All date strings from the client are treated as Brasília time (UTC-3).
+// Brazil abolished DST in 2019, so -03:00 is always correct.
 function parseRange(query: Record<string, string>) {
-  const now = new Date()
+  const todayBRT = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
 
-  const from = query.from
-    ? new Date(query.from + 'T00:00:00')
-    : new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0)
-
-  const to = query.to
-    ? new Date(query.to + 'T23:59:59')
-    : new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
+  const from = new Date((query.from ?? todayBRT) + 'T00:00:00-03:00')
+  const to   = new Date((query.to   ?? todayBRT) + 'T23:59:59.999-03:00')
 
   return { from, to }
 }
