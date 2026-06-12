@@ -23,6 +23,7 @@ interface SaleState {
     customerAddress?: string
   }) => Promise<SaleDTO>
 
+  updateSale: (saleId: string, input: { customerName?: string; customerAddress?: string }) => Promise<void>
   addItem: (saleId: string, productId: string, qty?: number) => Promise<void>
   removeItem: (saleId: string, itemId: string) => Promise<void>
   cancelItem: (saleId: string, itemId: string) => Promise<void>
@@ -67,6 +68,15 @@ export const useSale = create<SaleState>((set) => ({
     } catch (err) {
       set({ error: (err as Error).message, isLoading: false })
       throw err
+    }
+  },
+
+  updateSale: async (saleId, input) => {
+    try {
+      const sale = await api.patch<SaleDTO>(`/sales/${saleId}`, input)
+      set({ currentSale: sale })
+    } catch (err) {
+      set({ error: (err as Error).message })
     }
   },
 

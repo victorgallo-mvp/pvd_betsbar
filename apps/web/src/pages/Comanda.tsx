@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  ArrowLeft, Check, Receipt, X,
+  ArrowLeft, Check, Receipt, X, Pencil,
   Plus, Minus, ArrowRightLeft, CheckCheck, ShoppingCart, List, DoorOpen,
 } from 'lucide-react'
 import { useSale } from '../stores/useSale'
@@ -74,6 +74,34 @@ function CancelItemDialog({ item, onConfirm, onClose }: { item: SaleItemDTO; onC
   )
 }
 
+function EditNomeDialog({ current, onSave, onClose }: {
+  current: string
+  onSave: (name: string) => void
+  onClose: () => void
+}) {
+  const [value, setValue] = useState(current)
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+      <div className="bg-slate-800 rounded-2xl p-6 w-80 shadow-2xl border border-slate-700">
+        <h2 className="text-lg font-bold text-slate-100 mb-4">Nome da mesa</h2>
+        <input
+          type="text"
+          value={value}
+          onChange={e => setValue(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') onSave(value.trim()) }}
+          placeholder="Ex: João, Família Silva..."
+          autoFocus
+          className="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 text-sm mb-4"
+        />
+        <div className="flex gap-3">
+          <button onClick={onClose} className="flex-1 py-2 rounded-xl bg-slate-700 text-slate-300 touch-btn">Voltar</button>
+          <button onClick={() => onSave(value.trim())} className="flex-1 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold touch-btn">Salvar</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function FecharMesaDialog({ onConfirm, onClose }: { onConfirm: () => void; onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
@@ -108,7 +136,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 export default function Comanda() {
   const { saleId } = useParams<{ saleId: string }>()
   const navigate = useNavigate()
-  const { saleOperator, currentSale, loadSale, addItem, removeItem, cancelItem, concludeItems, requestBill, cancelSale } =
+  const { saleOperator, currentSale, loadSale, addItem, removeItem, cancelItem, updateSale, concludeItems, requestBill, cancelSale } =
     useSale()
   const { isPOS } = useDevice()
 
@@ -119,6 +147,7 @@ export default function Comanda() {
   const [addingItem, setAddingItem] = useState<string | null>(null)
   const [cancelingItem, setCancelingItem] = useState<SaleItemDTO | null>(null)
   const [pendingProduct, setPendingProduct] = useState<ProductDTO | null>(null)
+  const [editingNome, setEditingNome] = useState(false)
   const [posTab, setPosTab] = useState<'products' | 'pedido'>('products')
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'warning' } | null>(null)
 
@@ -152,6 +181,13 @@ export default function Comanda() {
     setTimeout(() => setToast(null), 3500)
   }
 
+  const handleSaveNome = async (name: string) => {
+    if (!saleId) return
+    setEditingNome(false)
+    await updateSale(saleId, { customerName: name })
+    showToast('Nome atualizado ✓', 'success')
+  }
+
   const handleConcluir = async () => {
     if (!saleId) return
     await concludeItems(saleId)
@@ -182,17 +218,27 @@ export default function Comanda() {
       <button onClick={() => navigate('/mesa')} className="text-slate-400 hover:text-slate-200 touch-btn">
         <ArrowLeft size={22} />
       </button>
-      <div className="flex items-center gap-2 flex-1">
-        <span className="bg-emerald-700 text-white px-3 py-1 rounded-full text-sm font-bold">
+      <div className="flex items-center gap-2 flex-1 min-w-0">
+        <span className="bg-emerald-700 text-white px-3 py-1 rounded-full text-sm font-bold shrink-0">
           Mesa {sale?.tableNumber ?? '—'}
         </span>
+        {sale?.customerName && (
+          <span className="text-slate-200 text-sm font-medium truncate">{sale.customerName}</span>
+        )}
         {sale?.status === 'awaiting_payment' && (
-          <span className="bg-amber-600 text-white px-2 py-0.5 rounded-full text-xs font-semibold">
+          <span className="bg-amber-600 text-white px-2 py-0.5 rounded-full text-xs font-semibold shrink-0">
             aguardando pagamento
           </span>
         )}
+        <button
+          onClick={() => setEditingNome(true)}
+          className="text-slate-500 hover:text-slate-300 touch-btn shrink-0 ml-auto"
+          title="Editar nome"
+        >
+          <Pencil size={14} />
+        </button>
       </div>
-      <span className="text-slate-500 text-xs">{saleOperator?.name}</span>
+      <span className="text-slate-500 text-xs shrink-0">{saleOperator?.name}</span>
     </div>
   )
 
@@ -367,6 +413,11 @@ export default function Comanda() {
           onConfirm={async (qty) => { const prod = pendingProduct; setPendingProduct(null); await handleAddProduct(prod.id, qty) }}
           onClose={() => setPendingProduct(null)}
         />}
+        {editingNome && <EditNomeDialog
+          current={sale?.customerName ?? ''}
+          onSave={handleSaveNome}
+          onClose={() => setEditingNome(false)}
+        />}
       </div>
     )
   }
@@ -394,6 +445,11 @@ export default function Comanda() {
         product={pendingProduct}
         onConfirm={async (qty) => { const prod = pendingProduct; setPendingProduct(null); await handleAddProduct(prod.id, qty) }}
         onClose={() => setPendingProduct(null)}
+      />}
+      {editingNome && <EditNomeDialog
+        current={sale?.customerName ?? ''}
+        onSave={handleSaveNome}
+        onClose={() => setEditingNome(false)}
       />}
     </div>
   )

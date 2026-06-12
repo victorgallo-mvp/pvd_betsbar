@@ -282,6 +282,18 @@ export const SaleService = {
     return SaleService.getSale(saleId)
   },
 
+  // Update mutable sale fields (customerName, customerAddress)
+  async updateSale(saleId: string, input: { customerName?: string; customerAddress?: string }) {
+    await prisma.sale.update({
+      where: { id: saleId },
+      data: {
+        ...(input.customerName !== undefined && { customerName: input.customerName || null }),
+        ...(input.customerAddress !== undefined && { customerAddress: input.customerAddress || null }),
+      },
+    })
+    return SaleService.getSale(saleId)
+  },
+
   // Cancel sale — mark cancelled + free the table
   async cancelSale(saleId: string) {
     const sale = await prisma.sale.findUniqueOrThrow({ where: { id: saleId } })

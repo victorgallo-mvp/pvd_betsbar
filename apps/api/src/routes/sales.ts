@@ -76,6 +76,17 @@ export const salesRoutes: FastifyPluginAsync = async (app) => {
     }
   })
 
+  // PATCH /sales/:id — update mutable fields (customerName, customerAddress)
+  app.patch('/:id', async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const body = request.body as { customerName?: string; customerAddress?: string }
+    try {
+      return await SaleService.updateSale(id, body)
+    } catch (err) {
+      return reply.status(400).send({ error: (err as Error).message })
+    }
+  })
+
   // DELETE /sales/:id — cancel sale + free table
   app.delete('/:id', async (request, reply) => {
     const { id } = request.params as { id: string }
