@@ -282,6 +282,20 @@ export const SaleService = {
     return SaleService.getSale(saleId)
   },
 
+  // List paid table sales for a given date (YYYY-MM-DD, BRT)
+  async listSalesByDate(date: string) {
+    const from = new Date(date + 'T00:00:00-03:00')
+    const to   = new Date(date + 'T23:59:59.999-03:00')
+
+    const sales = await prisma.sale.findMany({
+      where: { type: 'table', status: 'paid', closedAt: { gte: from, lte: to } },
+      include: saleInclude,
+      orderBy: { closedAt: 'asc' },
+    })
+
+    return sales.map(saleToDTO)
+  },
+
   // Update mutable sale fields (customerName, customerAddress)
   async updateSale(saleId: string, input: { customerName?: string; customerAddress?: string }) {
     await prisma.sale.update({

@@ -11,6 +11,7 @@ import {
   Search,
   LogOut,
   Circle,
+  History,
 } from 'lucide-react'
 import { useAuth } from '../stores/useAuth'
 import { useCash } from '../stores/useCash'
@@ -28,6 +29,7 @@ const menuItems: {
   { id: 'sangria',    label: 'Sangria',        sub: 'Realiza retirada do caixa',   icon: ArrowDownLeft, path: '/sangria',  color: 'bg-emerald-700 hover:bg-emerald-600', minRole: 'operator' },
   { id: 'cadastro',   label: 'Cadastro',       sub: 'Manutenção de cadastros',     icon: ClipboardList, path: '/cadastro', color: 'bg-emerald-700 hover:bg-emerald-600', minRole: 'admin'    },
   { id: 'relatorio',  label: 'Relatório',      sub: 'Analisa sua movimentação',    icon: BarChart3,     path: '/relatorio',color: 'bg-slate-700 hover:bg-slate-600',     minRole: 'operator' },
+  { id: 'historico',  label: 'Histórico',      sub: 'Histórico diário das mesas',  icon: History,       path: '/historico', color: 'bg-slate-700 hover:bg-slate-600',     minRole: 'operator' },
   { id: 'configurar', label: 'Configurar',     sub: 'Parâmetros, impressoras...',  icon: Settings,      path: '/config',   color: 'bg-emerald-700 hover:bg-emerald-600', minRole: 'admin'    },
   { id: 'consulta',   label: 'Consulta',       sub: 'Consulta os produtos',        icon: Search,        path: '/consulta', color: 'bg-emerald-700 hover:bg-emerald-600', minRole: 'waiter'   },
   { id: 'sair',       label: 'Sair',           sub: 'Finaliza sistema',            icon: LogOut,        path: null,        color: 'bg-slate-700 hover:bg-slate-600',     minRole: 'waiter'   },

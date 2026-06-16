@@ -13,6 +13,7 @@ import Sangria from './pages/Sangria'
 import EncerrarCaixa from './pages/EncerrarCaixa'
 import Cadastro from './pages/Cadastro'
 import Relatorio from './pages/Relatorio'
+import Historico from './pages/Historico'
 import Configurar from './pages/Configurar'
 import Consulta from './pages/Consulta'
 import Cardapio from './pages/Cardapio'
@@ -65,6 +66,7 @@ export default function App() {
       <Route path="/sangria"            element={<RequireRole min="operator"><Sangria /></RequireRole>} />
       <Route path="/encerrar"           element={<RequireRole min="operator"><EncerrarCaixa /></RequireRole>} />
       <Route path="/relatorio"          element={<RequireRole min="operator"><Relatorio /></RequireRole>} />
+      <Route path="/historico"          element={<RequireRole min="operator"><Historico /></RequireRole>} />
 
       {/* admin only */}
       <Route path="/cadastro"           element={<RequireRole min="admin"><Cadastro /></RequireRole>} />

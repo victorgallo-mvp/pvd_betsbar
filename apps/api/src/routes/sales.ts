@@ -9,6 +9,13 @@ import {
 } from '@pdv/shared'
 
 export const salesRoutes: FastifyPluginAsync = async (app) => {
+  // GET /sales?date=YYYY-MM-DD — histórico de mesas pagas no dia
+  app.get('/', async (request, reply) => {
+    const { date } = request.query as { date?: string }
+    if (!date) return reply.status(400).send({ error: 'Parâmetro date obrigatório' })
+    return SaleService.listSalesByDate(date)
+  })
+
   // POST /sales — open new sale
   app.post('/', async (request, reply) => {
     const parsed = OpenSaleSchema.safeParse(request.body)
