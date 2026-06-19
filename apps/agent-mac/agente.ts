@@ -56,14 +56,24 @@ function makePrinter(ip: string, port: number, cols: number, ifaceOverride?: str
   })
 }
 
-// Pipe raw ESC/POS bytes to a CUPS-installed printer (Mac)
+// Pipe raw ESC/POS bytes to a CUPS-installed printer (Mac).
+// Uses 'lpr -l' (literal/passthrough) which is more reliable than 'lp -o raw' on macOS.
+// To find your printer name: run  lpstat -p  in the terminal.
 async function printViaCups(printerName: string, buf: Buffer): Promise<void> {
   return new Promise((resolve, reject) => {
-    const proc = spawn('lp', ['-d', printerName, '-o', 'raw', '-'])
+    const proc = spawn('lpr', ['-P', printerName, '-l'])
+    let stderr = ''
+    proc.stderr?.on('data', (d: Buffer) => { stderr += d.toString() })
     proc.stdin.write(buf)
     proc.stdin.end()
-    proc.on('close', (code) => code === 0 ? resolve() : reject(new Error(`lp saiu com código ${code}`)))
-    proc.on('error', reject)
+    proc.on('close', (code) => {
+      if (code === 0) return resolve()
+      const hint = stderr.trim()
+        ? `: ${stderr.trim()}`
+        : ' — verifique o nome com: lpstat -p'
+      reject(new Error(`Impressora "${printerName}" — lpr saiu com código ${code}${hint}`))
+    })
+    proc.on('error', (err) => reject(new Error(`Erro ao chamar lpr: ${err.message}`)))
   })
 }
 

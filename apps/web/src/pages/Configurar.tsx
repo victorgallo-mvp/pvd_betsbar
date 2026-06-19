@@ -219,9 +219,17 @@ export default function Configurar() {
           )}
 
           {prt.type === 'usb' && (
-            <div className="bg-slate-900 rounded-xl p-3 text-xs text-slate-400 border border-slate-700">
-              A impressão USB é feita pelo agente local. Configure o nome da impressora Windows no <code>.env</code> do agente:<br />
-              <code className="text-emerald-400">PRINTER_INTERFACE=printer:POS-80</code>
+            <div className="bg-slate-900 rounded-xl p-3 text-xs text-slate-400 border border-slate-700 space-y-2">
+              <p>A impressão USB é feita pelo agente local. Configure no <code>.env</code> do agente:</p>
+              <p>
+                <span className="text-slate-300 font-semibold">Mac (CUPS):</span><br />
+                <code className="text-emerald-400">PRINTER_INTERFACE=cups:NomeDaImpressora</code><br />
+                <span className="text-slate-500">Para ver o nome exato, rode no terminal: <code className="text-slate-300">lpstat -p</code></span>
+              </p>
+              <p>
+                <span className="text-slate-300 font-semibold">Windows:</span><br />
+                <code className="text-emerald-400">PRINTER_INTERFACE=printer:POS-80</code>
+              </p>
             </div>
           )}
 
