@@ -2,7 +2,9 @@ const BASE = import.meta.env.VITE_API_URL ?? '/api'
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
+    // só declara JSON quando há corpo — DELETE/GET sem body + Content-Type
+    // vazio faz o Fastify rejeitar com FST_ERR_CTP_EMPTY_JSON_BODY (400)
+    headers: options?.body ? { 'Content-Type': 'application/json' } : undefined,
     ...options,
   })
 

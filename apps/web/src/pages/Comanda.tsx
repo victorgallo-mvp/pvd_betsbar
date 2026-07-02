@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Check, Receipt, X, Pencil,
-  Plus, Minus, ArrowRightLeft, CheckCheck, ShoppingCart, List, DoorOpen,
+  Plus, Minus, ArrowRightLeft, CheckCheck, ShoppingCart, List, DoorOpen, Loader,
 } from 'lucide-react'
 import { useSale } from '../stores/useSale'
 import { useDevice } from '../hooks/useDevice'
@@ -149,6 +149,7 @@ export default function Comanda() {
   const [pendingProduct, setPendingProduct] = useState<ProductDTO | null>(null)
   const [editingNome, setEditingNome] = useState(false)
   const [posTab, setPosTab] = useState<'products' | 'pedido'>('products')
+  const [concluding, setConcluding] = useState(false)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'warning' } | null>(null)
 
   // Require sale operator
@@ -189,9 +190,22 @@ export default function Comanda() {
   }
 
   const handleConcluir = async () => {
-    if (!saleId) return
-    await concludeItems(saleId)
-    showToast('Pedido lançado ✓', 'success')
+    if (!saleId || concluding) return
+    setConcluding(true)
+    try {
+      await concludeItems(saleId)
+      showToast('Pedido lançado ✓', 'success')
+    } finally {
+      setConcluding(false)
+    }
+  }
+
+  const handleFecharClick = () => {
+    if (!canClose) {
+      showToast('Peça a conta antes de fechar a mesa', 'warning')
+      return
+    }
+    setShowFecharConfirm(true)
   }
 
   const handleConta = async () => {
@@ -210,6 +224,7 @@ export default function Comanda() {
   const sale = currentSale
   const activeItems = sale?.items.filter((i) => !i.cancelled) ?? []
   const pendingCount = activeItems.filter((i) => !i.sentToProduction).length
+  const canClose = activeItems.length === 0 || sale?.status === 'awaiting_payment'
 
   // ── Shared sub-panels ──────────────────────────────────────
 
@@ -309,20 +324,24 @@ export default function Comanda() {
   const ActionBar = ({ tablet }: { tablet?: boolean }) => (
     <div className={`${tablet ? 'grid grid-cols-4' : 'grid grid-cols-2'} gap-1 p-2 bg-slate-800 border-t border-slate-700 shrink-0`}>
       {[
-        { icon: Receipt,        label: 'Conta',    action: handleConta,                      active: sale?.status !== 'awaiting_payment' },
-        { icon: DoorOpen,       label: 'Fechar',   action: () => setShowFecharConfirm(true), active: true },
-        { icon: ArrowRightLeft, label: 'Transf.',  action: () => {},                         active: false },
-        { icon: CheckCheck,     label: 'Lançar',   action: handleConcluir,                   active: pendingCount > 0 },
-      ].map(({ icon: Icon, label, action, active }) => (
+        { icon: Receipt,        label: 'Conta',    action: handleConta,      active: sale?.status !== 'awaiting_payment', locked: false },
+        { icon: DoorOpen,       label: 'Fechar',   action: handleFecharClick, active: true,                              locked: !canClose },
+        { icon: ArrowRightLeft, label: 'Transf.',  action: () => {},         active: false,                              locked: false },
+        { icon: CheckCheck,     label: 'Lançar',   action: handleConcluir,   active: pendingCount > 0 && !concluding,     locked: false },
+      ].map(({ icon: Icon, label, action, active, locked }) => (
         <button key={label} onClick={action} disabled={!active}
           className={`flex flex-col items-center justify-center gap-0.5 py-2 rounded-lg text-[10px] touch-btn
-            ${active
+            ${locked
+              ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
+              : active
               ? label === 'Lançar' ? 'bg-emerald-700 hover:bg-emerald-600 text-white'
               : label === 'Pagar' ? 'bg-blue-700 hover:bg-blue-600 text-white'
               : label === 'Fechar' ? 'bg-rose-800 hover:bg-rose-700 text-white'
               : 'bg-slate-700 hover:bg-slate-600 text-slate-200'
               : 'bg-slate-800 text-slate-600 cursor-not-allowed'}`}>
-          <Icon size={18} />
+          {label === 'Lançar' && concluding
+            ? <Loader size={18} className="animate-spin" />
+            : <Icon size={18} />}
           <span className="leading-tight text-center">{label}</span>
           {label === 'Lançar' && pendingCount > 0 && (
             <span className="bg-amber-500 text-black text-[9px] font-bold px-1 rounded-full">{pendingCount}</span>
