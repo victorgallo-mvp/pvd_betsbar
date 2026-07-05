@@ -12,7 +12,7 @@ import { NumericKeypad } from '../components/NumericKeypad'
 
 export default function MesaSelector() {
   const navigate = useNavigate()
-  const { tables, fetchTables, isLoading } = useTables()
+  const { tables, fetchTables, isLoading, fetchError } = useTables()
   const { saleOperator, openSale, clearSaleOperator } = useSale()
   const { isPOS } = useDevice()
 
@@ -30,6 +30,13 @@ export default function MesaSelector() {
   useEffect(() => { if (!saleOperator) navigate('/venda') }, [saleOperator, navigate])
   useEffect(() => { fetchTables() }, [fetchTables])
   useWebSocket()
+
+  // Recarrega ao voltar do background (tablet dormiu = WS morto + lista desatualizada)
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') fetchTables() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [fetchTables])
 
   const handleSelectMesa = async (tableNumber: number) => {
     const table = tables.find((t) => t.number === tableNumber)
@@ -148,13 +155,26 @@ export default function MesaSelector() {
   )
 
   const topBar = (
-    <div className="flex items-center gap-3 px-4 py-2 bg-slate-800 border-b border-slate-700 shrink-0">
-      <button onClick={() => navigate('/venda')} className="text-slate-400 hover:text-slate-200 touch-btn">
-        <ArrowLeft size={22} />
-      </button>
-      <span className="text-emerald-400 font-bold flex-1">Mesa</span>
-      <span className="text-slate-400 text-sm">{saleOperator?.name}</span>
-    </div>
+    <>
+      <div className="flex items-center gap-3 px-4 py-2 bg-slate-800 border-b border-slate-700 shrink-0">
+        <button onClick={() => navigate('/venda')} className="text-slate-400 hover:text-slate-200 touch-btn">
+          <ArrowLeft size={22} />
+        </button>
+        <span className="text-emerald-400 font-bold flex-1">Mesa</span>
+        <span className="text-slate-400 text-sm">{saleOperator?.name}</span>
+      </div>
+      {fetchError && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-rose-900/80 border-b border-rose-700 shrink-0">
+          <span className="text-rose-200 text-xs flex-1">
+            ⚠ Falha ao atualizar as mesas — a lista pode estar desatualizada
+          </span>
+          <button onClick={() => fetchTables()}
+            className="px-3 py-1 rounded-lg bg-rose-700 hover:bg-rose-600 text-white text-xs font-bold touch-btn">
+            Tentar novamente
+          </button>
+        </div>
+      )}
+    </>
   )
 
   const bottomBar = (

@@ -3,6 +3,8 @@ const BASE = import.meta.env.VITE_API_URL ?? '/api'
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     headers: { 'Content-Type': 'application/json' },
+    // Sem timeout, uma API travada deixa a requisição pendurada para sempre
+    signal: AbortSignal.timeout(15_000),
     ...options,
   })
 

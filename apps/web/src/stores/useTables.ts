@@ -5,6 +5,7 @@ import { api } from '../lib/api'
 interface TablesState {
   tables: TableDTO[]
   isLoading: boolean
+  fetchError: boolean
   fetchTables: () => Promise<void>
   updateTable: (table: TableDTO) => void
 }
@@ -12,14 +13,16 @@ interface TablesState {
 export const useTables = create<TablesState>((set) => ({
   tables: [],
   isLoading: false,
+  fetchError: false,
 
   fetchTables: async () => {
     set({ isLoading: true })
     try {
       const tables = await api.get<TableDTO[]>('/tables')
-      set({ tables, isLoading: false })
+      set({ tables, isLoading: false, fetchError: false })
     } catch {
-      set({ isLoading: false })
+      // Falha silenciosa aqui já causou mesas "sumindo" — o erro precisa ficar visível
+      set({ isLoading: false, fetchError: true })
     }
   },
 

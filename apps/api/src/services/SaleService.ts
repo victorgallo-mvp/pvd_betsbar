@@ -1,8 +1,7 @@
-import { PrismaClient, type Prisma } from '@prisma/client'
+import type { Prisma } from '@prisma/client'
+import { prisma } from '../lib/prisma.js'
 import { broadcast } from '../ws/broadcast.js'
 import { PrintService } from './PrintService.js'
-
-const prisma = new PrismaClient()
 
 // --- Prisma payload types ---
 
@@ -130,23 +129,40 @@ export const SaleService = {
     customerName?: string
     customerAddress?: string
   }) {
-    const sale = await prisma.sale.create({
-      data: {
-        type: input.type,
-        tableId: input.tableId ?? null,
-        operatorId: input.operatorId,
-        customerName: input.customerName ?? null,
-        customerAddress: input.customerAddress ?? null,
-        status: 'open',
-      },
-      include: saleInclude,
+    // Idempotência: se a mesa já tem venda ativa, retorna ela em vez de duplicar.
+    // (Evita vendas órfãs quando o cliente tem estado desatualizado ou re-tenta após timeout.)
+    if (input.tableId) {
+      const existing = await prisma.sale.findFirst({
+        where: { tableId: input.tableId, status: { in: ['open', 'awaiting_payment'] } },
+        include: saleInclude,
+        orderBy: { openedAt: 'desc' },
+      })
+      if (existing) return saleToDTO(existing)
+    }
+
+    let table: TableRow | null = null
+    const sale = await prisma.$transaction(async (tx) => {
+      const s = await tx.sale.create({
+        data: {
+          type: input.type,
+          tableId: input.tableId ?? null,
+          operatorId: input.operatorId,
+          customerName: input.customerName ?? null,
+          customerAddress: input.customerAddress ?? null,
+          status: 'open',
+        },
+        include: saleInclude,
+      })
+      if (input.tableId) {
+        table = await tx.table.update({
+          where: { id: input.tableId },
+          data: { status: 'open', openedAt: new Date() },
+        })
+      }
+      return s
     })
 
-    if (input.tableId) {
-      const table = await prisma.table.update({
-        where: { id: input.tableId },
-        data: { status: 'open', openedAt: new Date() },
-      })
+    if (table) {
       broadcast({ event: 'table_update', table: tableToDTO(table, input.customerName ?? null) })
     }
 
@@ -252,31 +268,36 @@ export const SaleService = {
 
   // Register a payment — closes sale + frees table when total is covered
   async registerPayment(saleId: string, input: { method: string; amount: number }) {
-    const sale = await prisma.sale.findUniqueOrThrow({
-      where: { id: saleId },
-      include: { payments: true },
-    })
+    const freedTable = await prisma.$transaction(async (tx) => {
+      // Total lido DENTRO da transação — evita fechar a venda com total desatualizado
+      const sale = await tx.sale.findUniqueOrThrow({
+        where: { id: saleId },
+        include: { payments: true },
+      })
 
-    await prisma.payment.create({
-      data: { saleId, method: input.method, amount: input.amount },
-    })
+      await tx.payment.create({
+        data: { saleId, method: input.method, amount: input.amount },
+      })
 
-    const totalPaid =
-      sale.payments.reduce((sum, p) => sum + Number(p.amount), 0) + input.amount
+      const totalPaid =
+        sale.payments.reduce((sum, p) => sum + Number(p.amount), 0) + input.amount
 
-    if (totalPaid >= Number(sale.total)) {
-      await prisma.sale.update({
+      if (totalPaid < Number(sale.total)) return null
+
+      await tx.sale.update({
         where: { id: saleId },
         data: { status: 'paid', closedAt: new Date() },
       })
 
-      if (sale.tableId) {
-        const table = await prisma.table.update({
-          where: { id: sale.tableId },
-          data: { status: 'free', openedAt: null, peopleCount: null },
-        })
-        broadcast({ event: 'table_update', table: tableToDTO(table) })
-      }
+      if (!sale.tableId) return null
+      return tx.table.update({
+        where: { id: sale.tableId },
+        data: { status: 'free', openedAt: null, peopleCount: null },
+      })
+    })
+
+    if (freedTable) {
+      broadcast({ event: 'table_update', table: tableToDTO(freedTable) })
     }
 
     return SaleService.getSale(saleId)
@@ -310,19 +331,23 @@ export const SaleService = {
 
   // Cancel sale — mark cancelled + free the table
   async cancelSale(saleId: string) {
-    const sale = await prisma.sale.findUniqueOrThrow({ where: { id: saleId } })
+    const freedTable = await prisma.$transaction(async (tx) => {
+      const sale = await tx.sale.findUniqueOrThrow({ where: { id: saleId } })
 
-    await prisma.sale.update({
-      where: { id: saleId },
-      data: { status: 'cancelled', closedAt: new Date() },
-    })
+      await tx.sale.update({
+        where: { id: saleId },
+        data: { status: 'cancelled', closedAt: new Date() },
+      })
 
-    if (sale.tableId) {
-      const table = await prisma.table.update({
+      if (!sale.tableId) return null
+      return tx.table.update({
         where: { id: sale.tableId },
         data: { status: 'free', openedAt: null, peopleCount: null },
       })
-      broadcast({ event: 'table_update', table: tableToDTO(table) })
+    })
+
+    if (freedTable) {
+      broadcast({ event: 'table_update', table: tableToDTO(freedTable) })
     }
   },
 

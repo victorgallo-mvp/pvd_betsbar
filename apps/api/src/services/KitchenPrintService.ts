@@ -1,9 +1,8 @@
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '../lib/prisma.js'
 // @ts-ignore
 import ThermalPrinter from 'node-thermal-printer'
 import { readConfig } from '../appConfig.js'
 
-const prisma = new PrismaClient()
 
 const MOCK = process.env.MOCK_PRINTER === 'true'
 const AGENT_MODE = process.env.AGENT_MODE === 'true'
@@ -152,24 +151,12 @@ export const KitchenPrintService = {
       ],
     }
 
-    // Mark ALL pending items as sent to production (including non-kitchen ones).
-    // This ensures the flow is never blocked by a printer failure.
-    await prisma.saleItem.updateMany({
+    const markSent = () => prisma.saleItem.updateMany({
       where: { saleId, sentToProduction: false, cancelled: false },
       data: { sentToProduction: true },
     })
 
-    // In AGENT_MODE the local print agent handles all printing — skip TCP attempt
-    if (!AGENT_MODE) {
-      try {
-        await sendToKitchenPrinter(payload)
-        return { printed: kitchenItems.length, queued: 0 }
-      } catch (err) {
-        console.error('[KitchenPrint] Falha ao imprimir, adicionando à fila:', (err as Error).message)
-      }
-    }
-
-    await prisma.printJob.create({
+    const createJob = () => prisma.printJob.create({
       data: {
         saleId,
         type: 'kitchen',
@@ -178,6 +165,26 @@ export const KitchenPrintService = {
         payload: JSON.stringify(payload),
       },
     })
+
+    // In AGENT_MODE the local print agent handles all printing — skip TCP attempt.
+    // Atômico: nunca marca itens como enviados sem o job correspondente existir.
+    if (AGENT_MODE) {
+      await prisma.$transaction([markSent(), createJob()])
+      return { printed: 0, queued: kitchenItems.length }
+    }
+
+    // Mark ALL pending items as sent to production (including non-kitchen ones).
+    // This ensures the flow is never blocked by a printer failure.
+    await markSent()
+
+    try {
+      await sendToKitchenPrinter(payload)
+      return { printed: kitchenItems.length, queued: 0 }
+    } catch (err) {
+      console.error('[KitchenPrint] Falha ao imprimir, adicionando à fila:', (err as Error).message)
+    }
+
+    await createJob()
 
     return { printed: 0, queued: kitchenItems.length }
   },

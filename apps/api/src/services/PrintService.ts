@@ -1,9 +1,8 @@
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '../lib/prisma.js'
 // @ts-ignore
 import ThermalPrinter from 'node-thermal-printer'
 import { readConfig } from '../appConfig.js'
 
-const prisma = new PrismaClient()
 
 const AGENT_MODE = process.env.AGENT_MODE === 'true'
 

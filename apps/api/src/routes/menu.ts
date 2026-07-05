@@ -1,7 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '../lib/prisma.js'
 
-const prisma = new PrismaClient()
 
 export const menuRoutes: FastifyPluginAsync = async (app) => {
   // GET /menu — public endpoint, no auth required

@@ -1,8 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '../lib/prisma.js'
 import { PrintService } from '../services/PrintService.js'
 
-const prisma = new PrismaClient()
 
 export const printRoutes: FastifyPluginAsync = async (app) => {
   // GET /print/pending — list all pending print jobs (used by local print agent)

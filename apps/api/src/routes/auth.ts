@@ -1,9 +1,8 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '../lib/prisma.js'
 import bcrypt from 'bcryptjs'
 import { LoginSchema } from '@pdv/shared'
 
-const prisma = new PrismaClient()
 
 export const authRoutes: FastifyPluginAsync = async (app) => {
   // POST /auth/login — validates PIN and returns user info

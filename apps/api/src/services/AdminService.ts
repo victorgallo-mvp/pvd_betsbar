@@ -1,7 +1,6 @@
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '../lib/prisma.js'
 import bcrypt from 'bcryptjs'
 
-const prisma = new PrismaClient()
 
 export const AdminService = {
   // ── Products ──────────────────────────────────────────────

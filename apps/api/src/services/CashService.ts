@@ -1,6 +1,5 @@
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '../lib/prisma.js'
 
-const prisma = new PrismaClient()
 
 export const CashService = {
   // Single active session for the whole establishment (not per-operator)

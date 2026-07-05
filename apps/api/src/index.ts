@@ -26,6 +26,8 @@ await app.register(async (instance) => {
   instance.get('/ws', { websocket: true }, (socket) => {
     clients.add(socket)
     socket.on('close', () => clients.delete(socket))
+    // Sem este listener, um ECONNRESET (tablet dormiu/perdeu Wi-Fi) derruba o processo inteiro
+    socket.on('error', () => clients.delete(socket))
   })
 })
 
