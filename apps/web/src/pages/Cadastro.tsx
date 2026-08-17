@@ -422,8 +422,10 @@ export default function Cadastro() {
   const [categories, setCategories] = useState<Category[]>([])
 
   useEffect(() => {
+    // Recarrega sempre que a aba muda — evita usar uma lista de categorias
+    // desatualizada no formulário de produto logo após criar uma categoria nova.
     api.get<Category[]>('/admin/categories').then(setCategories)
-  }, [])
+  }, [tab])
 
   return (
     <div className="h-full flex flex-col bg-slate-900">
