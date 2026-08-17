@@ -212,7 +212,7 @@ export default function Comanda() {
     if (!saleId) return
     await requestBill(saleId, 1)
     showToast('Comprovante enviado para impressora ✓', 'success')
-    setTimeout(() => navigate('/mesa'), 2000)
+    navigate(`/pagamento/${saleId}`)
   }
 
   const handleFecharMesa = async () => {

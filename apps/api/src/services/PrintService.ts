@@ -195,7 +195,9 @@ export const PrintService = {
       subtotal: Number(sale.subtotal),
       discount: Number(sale.discount),
       total: Number(sale.total),
-      payments: [],
+      // Pagamentos parciais já feitos na mesa — aparecem no papel como extrato,
+      // abaixo do TOTAL cheio (ver loop de payments no template do agente).
+      payments: sale.payments.map((p) => ({ method: p.method, amount: Number(p.amount) })),
       troco: 0,
     }
 
