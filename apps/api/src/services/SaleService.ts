@@ -236,27 +236,19 @@ export const SaleService = {
     return SaleService.recalcAndGet(saleId)
   },
 
-  // Request bill — compute perPersonAmount, put sale + table into awaiting_payment
+  // Request bill — imprime o extrato atual (itens + total + pagamentos já
+  // feitos). Não trava mais a mesa em awaiting_payment: ela continua aberta
+  // pra outros lançarem pedido, e só fecha de fato quando os pagamentos
+  // somados cobrirem o total (ver registerPayment). Pode ser chamado quantas
+  // vezes forem necessárias ao longo do atendimento.
   async requestBill(saleId: string, input: { peopleCount: number }) {
     const sale = await prisma.sale.findUniqueOrThrow({ where: { id: saleId } })
     const perPersonAmount = Number(sale.total) / input.peopleCount
 
     await prisma.sale.update({
       where: { id: saleId },
-      data: {
-        status: 'awaiting_payment',
-        peopleCount: input.peopleCount,
-        perPersonAmount,
-      },
+      data: { peopleCount: input.peopleCount, perPersonAmount },
     })
-
-    if (sale.tableId) {
-      const table = await prisma.table.update({
-        where: { id: sale.tableId },
-        data: { status: 'awaiting_payment', peopleCount: input.peopleCount },
-      })
-      broadcast({ event: 'table_update', table: tableToDTO(table) })
-    }
 
     // Auto-print bill receipt (fire-and-forget — print failure must not block the flow)
     PrintService.createBillJob(saleId).catch((err) =>
