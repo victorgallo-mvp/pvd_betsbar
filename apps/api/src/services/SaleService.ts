@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma.js'
 import { broadcast } from '../ws/broadcast.js'
 import { PrintService } from './PrintService.js'
+import { Diag } from './DiagService.js'
 
 // --- Prisma payload types ---
 
@@ -137,7 +138,21 @@ export const SaleService = {
         include: saleInclude,
         orderBy: { openedAt: 'desc' },
       })
-      if (existing) return saleToDTO(existing)
+      if (existing) {
+        Diag.log({
+          type: 'conflict.open_existing',
+          saleId: existing.id,
+          tableNumber: existing.table?.number ?? null,
+          data: {
+            typedName: input.customerName ?? null,
+            existingName: existing.customerName,
+            existingItems: existing.items.length,
+            existingOpenedAt: existing.openedAt.toISOString(),
+            existingOperatorId: existing.operatorId,
+          },
+        })
+        return saleToDTO(existing)
+      }
     }
 
     let table: TableRow | null = null
@@ -166,6 +181,12 @@ export const SaleService = {
       broadcast({ event: 'table_update', table: tableToDTO(table, input.customerName ?? null) })
     }
 
+    Diag.log({
+      type: 'sale.opened',
+      saleId: sale.id,
+      tableNumber: sale.table?.number ?? null,
+      data: { saleType: input.type, customerName: input.customerName ?? null, operatorId: input.operatorId },
+    })
     return saleToDTO(sale)
   },
 
@@ -185,6 +206,15 @@ export const SaleService = {
       include: saleInclude,
       orderBy: { openedAt: 'desc' },
     })
+    if (!sale) {
+      // Mesa marcada como ocupada sem venda ativa = grade do aparelho desatualizada ou mesa órfã
+      const table = await prisma.table.findUnique({ where: { id: tableId } })
+      Diag.log({
+        type: 'conflict.active_sale_missing',
+        tableNumber: table?.number ?? null,
+        data: { tableId, tableStatus: table?.status ?? 'inexistente' },
+      })
+    }
     return sale ? saleToDTO(sale) : null
   },
 
@@ -196,18 +226,35 @@ export const SaleService = {
       where: { saleId, productId: input.productId, sentToProduction: false, cancelled: false },
     })
 
+    let itemId: string
     if (existing) {
       await prisma.saleItem.update({
         where: { id: existing.id },
         data: { qty: existing.qty + input.qty },
       })
+      itemId = existing.id
     } else {
-      await prisma.saleItem.create({
+      const created = await prisma.saleItem.create({
         data: { saleId, productId: input.productId, qty: input.qty, unitPrice: product.price },
       })
+      itemId = created.id
     }
 
-    return SaleService.recalcAndGet(saleId)
+    const result = await SaleService.recalcAndGet(saleId)
+    Diag.log({
+      type: 'sale.item_added',
+      saleId,
+      tableNumber: result.tableNumber,
+      data: {
+        itemId, productId: input.productId, productName: product.name, qty: input.qty,
+        merged: !!existing, qtyBefore: existing?.qty ?? 0, qtyAfter: (existing?.qty ?? 0) + input.qty,
+        saleStatus: result.status, customerName: result.customerName,
+      },
+    })
+    if (result.status !== 'open' && result.status !== 'awaiting_payment') {
+      Diag.log({ type: 'conflict.item_on_closed_sale', saleId, tableNumber: result.tableNumber, data: { itemId, status: result.status } })
+    }
+    return result
   },
 
   // Remove 1 unit from a pending item (or remove item if qty would reach 0)
@@ -224,7 +271,14 @@ export const SaleService = {
       await prisma.saleItem.delete({ where: { id: itemId } })
     }
 
-    return SaleService.recalcAndGet(saleId)
+    const result = await SaleService.recalcAndGet(saleId)
+    Diag.log({
+      type: 'sale.item_removed',
+      saleId,
+      tableNumber: result.tableNumber,
+      data: { itemId, productId: item.productId, qtyBefore: item.qty, deleted: item.qty <= 1 },
+    })
+    return result
   },
 
   // Mark pending items as sent to production
@@ -251,20 +305,26 @@ export const SaleService = {
     })
 
     // Auto-print bill receipt (fire-and-forget — print failure must not block the flow)
-    PrintService.createBillJob(saleId).catch((err) =>
-      console.error('[Print] createBillJob falhou:', err),
-    )
+    PrintService.createBillJob(saleId)
+      .then((job) => {
+        Diag.log({ type: 'sale.bill_requested', saleId, data: { jobId: job.id, peopleCount: input.peopleCount, total: Number(sale.total), status: sale.status } })
+      })
+      .catch((err) => {
+        console.error('[Print] createBillJob falhou:', err)
+        Diag.log({ type: 'sale.bill_job_failed', saleId, data: { error: (err as Error).message } })
+      })
 
     return SaleService.getSale(saleId)
   },
 
   // Register a payment — closes sale + frees table when total is covered
   async registerPayment(saleId: string, input: { method: string; amount: number }) {
+    let diag: Record<string, unknown> = {}
     const freedTable = await prisma.$transaction(async (tx) => {
       // Total lido DENTRO da transação — evita fechar a venda com total desatualizado
       const sale = await tx.sale.findUniqueOrThrow({
         where: { id: saleId },
-        include: { payments: true },
+        include: { payments: true, table: true },
       })
 
       await tx.payment.create({
@@ -273,6 +333,12 @@ export const SaleService = {
 
       const totalPaid =
         sale.payments.reduce((sum, p) => sum + Number(p.amount), 0) + input.amount
+
+      diag = {
+        tableNumber: sale.table?.number ?? null, statusBefore: sale.status, method: input.method,
+        amount: input.amount, paidBefore: totalPaid - input.amount, total: Number(sale.total),
+        closes: totalPaid >= Number(sale.total),
+      }
 
       if (totalPaid < Number(sale.total)) return null
 
@@ -292,6 +358,10 @@ export const SaleService = {
       broadcast({ event: 'table_update', table: tableToDTO(freedTable) })
     }
 
+    Diag.log({ type: 'sale.payment', saleId, tableNumber: (diag.tableNumber as number | null) ?? null, data: diag })
+    if (diag.statusBefore === 'paid' || diag.statusBefore === 'cancelled') {
+      Diag.log({ type: 'conflict.payment_on_closed_sale', saleId, tableNumber: (diag.tableNumber as number | null) ?? null, data: diag })
+    }
     return SaleService.getSale(saleId)
   },
 
@@ -311,6 +381,15 @@ export const SaleService = {
 
   // Update mutable sale fields (customerName, customerAddress)
   async updateSale(saleId: string, input: { customerName?: string; customerAddress?: string }) {
+    const before = await prisma.sale.findUnique({ where: { id: saleId }, include: { table: true } })
+    if (before && input.customerName !== undefined && (input.customerName || null) !== before.customerName) {
+      Diag.log({
+        type: 'sale.renamed',
+        saleId,
+        tableNumber: before.table?.number ?? null,
+        data: { from: before.customerName, to: input.customerName || null },
+      })
+    }
     await prisma.sale.update({
       where: { id: saleId },
       data: {
@@ -323,8 +402,13 @@ export const SaleService = {
 
   // Cancel sale — mark cancelled + free the table
   async cancelSale(saleId: string) {
+    let diag: Record<string, unknown> = {}
     const freedTable = await prisma.$transaction(async (tx) => {
-      const sale = await tx.sale.findUniqueOrThrow({ where: { id: saleId } })
+      const sale = await tx.sale.findUniqueOrThrow({ where: { id: saleId }, include: { table: true, items: true, payments: true } })
+      diag = {
+        tableNumber: sale.table?.number ?? null, statusBefore: sale.status, items: sale.items.filter((i) => !i.cancelled).length,
+        total: Number(sale.total), payments: sale.payments.length, customerName: sale.customerName,
+      }
 
       await tx.sale.update({
         where: { id: saleId },
@@ -341,6 +425,7 @@ export const SaleService = {
     if (freedTable) {
       broadcast({ event: 'table_update', table: tableToDTO(freedTable) })
     }
+    Diag.log({ type: 'sale.cancelled', saleId, tableNumber: (diag.tableNumber as number | null) ?? null, data: diag })
   },
 
   // Cancel a sent item — marks cancelled + queues kitchen cancel notice
@@ -354,6 +439,17 @@ export const SaleService = {
     })
 
     await prisma.saleItem.update({ where: { id: itemId }, data: { cancelled: true } })
+
+    Diag.log({
+      type: 'sale.item_cancelled',
+      saleId,
+      tableNumber: item.sale.table?.number ?? null,
+      data: {
+        itemId, productId: item.productId, productName: item.product.name, qty: item.qty,
+        sentToProduction: item.sentToProduction, kitchen: item.product.sendToKitchen,
+        itemAgeMs: Date.now() - item.createdAt.getTime(), customerName: item.sale.customerName,
+      },
+    })
 
     if (item.sentToProduction && item.product.sendToKitchen) {
       const s = item.sale

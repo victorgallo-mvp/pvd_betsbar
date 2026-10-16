@@ -2,6 +2,7 @@ import { prisma } from '../lib/prisma.js'
 // @ts-ignore
 import ThermalPrinter from 'node-thermal-printer'
 import { readConfig } from '../appConfig.js'
+import { Diag } from './DiagService.js'
 
 
 const MOCK = process.env.MOCK_PRINTER === 'true'
@@ -123,14 +124,35 @@ export const KitchenPrintService = {
 
     if (!sale) return { printed: 0, queued: 0 }
 
+    const tableNumber = sale.table?.number ?? null
+    const readIds = sale.items.map((i) => i.id)
+    // Diagnóstico: itens marcados como enviados devem ser exatamente os lidos. Se a
+    // contagem diferir, outro aparelho adicionou/alterou item entre a leitura e a
+    // marcação, e esse item nunca vai sair no ticket.
+    const logLaunch = (marked: number, jobId: string | null, kitchen: number) => {
+      Diag.log({
+        type: 'sale.launched',
+        saleId,
+        tableNumber,
+        data: {
+          itemsRead: readIds.length, kitchenItems: kitchen, marked, jobId, customerName: sale.customerName,
+          items: sale.items.map((i) => ({ id: i.id, qty: i.qty, name: i.product.name, kitchen: i.product.sendToKitchen })),
+        },
+      })
+      if (marked !== readIds.length) {
+        Diag.log({ type: 'conflict.launch_marked_unread', saleId, tableNumber, data: { itemsRead: readIds.length, marked, readIds } })
+      }
+    }
+
     // Only send items whose product is flagged for kitchen printing
     const kitchenItems = sale.items.filter((i) => i.product.sendToKitchen)
     if (kitchenItems.length === 0) {
       // No kitchen items (e.g. only beverages) — still mark all pending as sent
-      await prisma.saleItem.updateMany({
+      const r = await prisma.saleItem.updateMany({
         where: { saleId, sentToProduction: false, cancelled: false },
         data: { sentToProduction: true },
       })
+      logLaunch(r.count, null, 0)
       return { printed: 0, queued: 0 }
     }
 
@@ -169,22 +191,25 @@ export const KitchenPrintService = {
     // In AGENT_MODE the local print agent handles all printing — skip TCP attempt.
     // Atômico: nunca marca itens como enviados sem o job correspondente existir.
     if (AGENT_MODE) {
-      await prisma.$transaction([markSent(), createJob()])
+      const [marked, job] = await prisma.$transaction([markSent(), createJob()])
+      logLaunch(marked.count, job.id, kitchenItems.length)
       return { printed: 0, queued: kitchenItems.length }
     }
 
     // Mark ALL pending items as sent to production (including non-kitchen ones).
     // This ensures the flow is never blocked by a printer failure.
-    await markSent()
+    const marked = await markSent()
 
     try {
       await sendToKitchenPrinter(payload)
+      logLaunch(marked.count, null, kitchenItems.length)
       return { printed: kitchenItems.length, queued: 0 }
     } catch (err) {
       console.error('[KitchenPrint] Falha ao imprimir, adicionando à fila:', (err as Error).message)
     }
 
-    await createJob()
+    const job = await createJob()
+    logLaunch(marked.count, job.id, kitchenItems.length)
 
     return { printed: 0, queued: kitchenItems.length }
   },

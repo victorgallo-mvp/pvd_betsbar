@@ -9,6 +9,7 @@ import { useWebSocket } from '../hooks/useWebSocket'
 import { useDevice } from '../hooks/useDevice'
 import { MesaCard } from '../components/MesaCard'
 import { NumericKeypad } from '../components/NumericKeypad'
+import { track } from '../lib/diag'
 
 export default function MesaSelector() {
   const navigate = useNavigate()
@@ -38,18 +39,25 @@ export default function MesaSelector() {
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [fetchTables])
 
-  const handleSelectMesa = async (tableNumber: number) => {
+  const handleSelectMesa = async (tableNumber: number, via: 'card' | 'keypad' = 'card') => {
     const table = tables.find((t) => t.number === tableNumber)
+    track('tap', { tableNumber, via, found: !!table, status: table?.status ?? null, cardName: table?.customerName ?? null, tablesLoaded: tables.length })
     if (!table) { setBusyMsg(`Mesa ${tableNumber} não existe`); setTimeout(() => setBusyMsg(''), 2000); return }
 
-    if (table.status === 'awaiting_payment') {
-      const sale = await api.get<SaleDTO>(`/tables/${table.id}/active-sale`)
-      navigate(`/pagamento/${sale.id}`)
-      return
-    }
-    if (table.status === 'open') {
-      const sale = await api.get<SaleDTO>(`/tables/${table.id}/active-sale`)
-      navigate(`/comanda/${sale.id}`)
+    if (table.status === 'awaiting_payment' || table.status === 'open') {
+      // Comportamento original: falha no GET não mostra nada (fica registrada no diagnóstico)
+      let sale: SaleDTO
+      try {
+        sale = await api.get<SaleDTO>(`/tables/${table.id}/active-sale`)
+      } catch (err) {
+        track('tap_failed', { tableNumber, error: (err as Error).message })
+        throw err
+      }
+      track('tap_ok', { tableNumber, saleId: sale.id, saleTable: sale.tableNumber, customerName: sale.customerName, items: sale.items.length })
+      if (sale.tableNumber !== tableNumber) {
+        track('conflict.tap_table_mismatch', { tableNumber, saleId: sale.id, saleTable: sale.tableNumber })
+      }
+      navigate(table.status === 'awaiting_payment' ? `/pagamento/${sale.id}` : `/comanda/${sale.id}`)
       return
     }
 
@@ -63,15 +71,23 @@ export default function MesaSelector() {
     if (!pendingTable || !saleOperator) return
     setPendingTable(null)
     setBusyMsg('Abrindo mesa...')
+    const typedName = nameInput.trim() || undefined
+    track('open', { tableNumber: pendingTable.number, customerName: typedName ?? null })
     try {
       const sale = await openSale({
         type: 'table',
         tableId: pendingTable.id,
         operatorId: saleOperator.id,
-        customerName: nameInput.trim() || undefined,
+        customerName: typedName,
+      })
+      const reused = sale.items.length > 0 || (sale.customerName ?? null) !== (typedName ?? null)
+      track(reused ? 'conflict.open_returned_existing' : 'open_ok', {
+        tableNumber: pendingTable.number, saleId: sale.id, saleTable: sale.tableNumber,
+        typedName: typedName ?? null, returnedName: sale.customerName, items: sale.items.length,
       })
       navigate(`/comanda/${sale.id}`)
-    } catch {
+    } catch (err) {
+      track('open_failed', { tableNumber: pendingTable.number, error: (err as Error).message })
       setBusyMsg('Erro ao abrir mesa')
       setTimeout(() => setBusyMsg(''), 2000)
     }
@@ -81,7 +97,7 @@ export default function MesaSelector() {
     const num = Number(inputNum)
     if (!num) return
     setInputNum('')
-    handleSelectMesa(num)
+    handleSelectMesa(num, 'keypad')
   }
 
   const handleAddTable = async () => {
@@ -90,6 +106,7 @@ export default function MesaSelector() {
     if (tables.some((t) => t.number === num)) { setAddTableError(`Mesa ${num} já existe`); return }
     setAddTableError('')
     try {
+      track('table_create', { tableNumber: num })
       await api.post('/admin/tables', { number: num })
       await fetchTables()
       setAddingTable(false)

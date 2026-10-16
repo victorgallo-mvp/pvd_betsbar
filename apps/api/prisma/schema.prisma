@@ -125,4 +125,31 @@ model PrintJob {
   payload      String    // JSON with print data
   printedAt    DateTime?
   createdAt    DateTime  @default(now())
+  // Diagnóstico da impressão (ver routes/print.ts)
+  fetchedAt    DateTime? // primeira vez que um agente buscou o job
+  attempts     Int       @default(0)
+  lastError    String?
+  agentId      String?
+}
+
+// Diário de diagnóstico: eventos do celular (source=client), da API (source=api)
+// e do agente de impressão (source=agent). Só inserção; consultado via /diag.
+model DiagEvent {
+  id           String    @id @default(cuid())
+  source       String    // 'client' | 'api' | 'agent'
+  type         String    // ex: 'request', 'tap', 'nav', 'sale.item_added', 'print.failed'
+  deviceId     String?
+  operatorId   String?
+  saleId       String?
+  tableNumber  Int?
+  screenSaleId String?   // venda que a tela do aparelho exibia no momento
+  route        String?
+  data         String?   // JSON livre
+  clientTs     DateTime? // horário no aparelho (pode diferir do servidor)
+  createdAt    DateTime  @default(now())
+
+  @@index([createdAt])
+  @@index([saleId])
+  @@index([deviceId, createdAt])
+  @@index([type, createdAt])
 }

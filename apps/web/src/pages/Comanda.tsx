@@ -8,6 +8,7 @@ import { useSale } from '../stores/useSale'
 import { useDevice } from '../hooks/useDevice'
 import type { CategoryDTO, ProductDTO, SaleItemDTO } from '@pdv/shared'
 import { api } from '../lib/api'
+import { track } from '../lib/diag'
 
 
 function fmtBRL(n: number) {
@@ -158,11 +159,29 @@ export default function Comanda() {
   }, [saleOperator, navigate])
 
   // Load sale and categories
+  const mountedAt = useRef(0)
   useEffect(() => {
     if (!saleId) return
+    // Diagnóstico: o que a tela mostra ao montar versus a venda da URL
+    const shown = useSale.getState().currentSale
+    mountedAt.current = performance.now()
+    track('comanda_mount', {
+      saleId,
+      shownSaleId: shown?.id ?? null, shownTable: shown?.tableNumber ?? null, shownName: shown?.customerName ?? null,
+      mismatch: !!shown && shown.id !== saleId,
+    })
     loadSale(saleId)
     api.get<CategoryDTO[]>('/products/categories').then(setCategories)
   }, [saleId, loadSale])
+
+  // Diagnóstico: quando a venda da URL de fato apareceu na tela
+  useEffect(() => {
+    if (!saleId || currentSale?.id !== saleId) return
+    track('comanda_loaded', {
+      saleId, tableNumber: currentSale.tableNumber, customerName: currentSale.customerName,
+      items: currentSale.items.length, ms: Math.round(performance.now() - mountedAt.current),
+    })
+  }, [saleId, currentSale?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load products when category changes
   useEffect(() => {
@@ -173,7 +192,15 @@ export default function Comanda() {
   const handleAddProduct = async (productId: string, qty = 1) => {
     if (!saleId || addingItem) return
     setAddingItem(productId)
+    const shown = useSale.getState().currentSale
+    track('add_item', {
+      saleId, productId, qty,
+      shownSaleId: shown?.id ?? null, shownTable: shown?.tableNumber ?? null, mismatch: !!shown && shown.id !== saleId,
+    })
+    const errBefore = useSale.getState().error
     await addItem(saleId, productId, qty)
+    const errAfter = useSale.getState().error
+    if (errAfter && errAfter !== errBefore) track('add_item_failed', { saleId, productId, error: errAfter })
     setAddingItem(null)
   }
 
@@ -192,8 +219,17 @@ export default function Comanda() {
   const handleConcluir = async () => {
     if (!saleId || concluding) return
     setConcluding(true)
+    const shown = useSale.getState().currentSale
+    track('launch', {
+      saleId, pendingCount, shownSaleId: shown?.id ?? null, shownTable: shown?.tableNumber ?? null, shownName: shown?.customerName ?? null,
+      mismatch: !!shown && shown.id !== saleId,
+    })
     try {
-      await concludeItems(saleId)
+      const errBefore = useSale.getState().error
+      const r = await concludeItems(saleId)
+      const errAfter = useSale.getState().error
+      if (errAfter && errAfter !== errBefore) track('launch_failed', { saleId, error: errAfter })
+      else track('launch_ok', { saleId, printed: r.printed, queued: r.queued })
       showToast('Pedido lançado ✓', 'success')
     } finally {
       setConcluding(false)
@@ -210,13 +246,19 @@ export default function Comanda() {
 
   const handleConta = async () => {
     if (!saleId) return
+    const shown = useSale.getState().currentSale
+    track('bill', { saleId, shownSaleId: shown?.id ?? null, shownTable: shown?.tableNumber ?? null, mismatch: !!shown && shown.id !== saleId })
+    const errBefore = useSale.getState().error
     await requestBill(saleId, 1)
+    const errAfter = useSale.getState().error
+    if (errAfter && errAfter !== errBefore) track('bill_failed', { saleId, error: errAfter })
     showToast('Comprovante enviado para impressora ✓', 'success')
     navigate(`/pagamento/${saleId}`)
   }
 
   const handleFecharMesa = async () => {
     if (!saleId) return
+    track('close_table', { saleId })
     await cancelSale(saleId)
     navigate('/mesa')
   }
@@ -424,7 +466,7 @@ export default function Comanda() {
         {showFecharConfirm && <FecharMesaDialog onConfirm={handleFecharMesa} onClose={() => setShowFecharConfirm(false)} />}
         {cancelingItem && <CancelItemDialog
           item={cancelingItem}
-          onConfirm={async () => { const snap = cancelingItem; setCancelingItem(null); await cancelItem(saleId!, snap.id); showToast(snap.sentToProduction && snap.sendToKitchen ? 'Item cancelado — aviso enviado para cozinha' : 'Item cancelado', 'warning') }}
+          onConfirm={async () => { const snap = cancelingItem; setCancelingItem(null); track('cancel_item', { saleId, itemId: snap.id, productId: snap.productId, qty: snap.qty, sent: snap.sentToProduction }); await cancelItem(saleId!, snap.id); showToast(snap.sentToProduction && snap.sendToKitchen ? 'Item cancelado — aviso enviado para cozinha' : 'Item cancelado', 'warning') }}
           onClose={() => setCancelingItem(null)}
         />}
         {pendingProduct && <AddQtyDialog
@@ -457,7 +499,7 @@ export default function Comanda() {
       {showFecharConfirm && <FecharMesaDialog onConfirm={handleFecharMesa} onClose={() => setShowFecharConfirm(false)} />}
       {cancelingItem && <CancelItemDialog
         item={cancelingItem}
-        onConfirm={async () => { const snap = cancelingItem; setCancelingItem(null); await cancelItem(saleId!, snap.id); showToast(snap.sentToProduction && snap.sendToKitchen ? 'Item cancelado — aviso enviado para cozinha' : 'Item cancelado', 'warning') }}
+        onConfirm={async () => { const snap = cancelingItem; setCancelingItem(null); track('cancel_item', { saleId, itemId: snap.id, productId: snap.productId, qty: snap.qty, sent: snap.sentToProduction }); await cancelItem(saleId!, snap.id); showToast(snap.sentToProduction && snap.sendToKitchen ? 'Item cancelado — aviso enviado para cozinha' : 'Item cancelado', 'warning') }}
         onClose={() => setCancelingItem(null)}
       />}
       {pendingProduct && <AddQtyDialog

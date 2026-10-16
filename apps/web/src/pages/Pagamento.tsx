@@ -5,6 +5,7 @@ import { useSale } from '../stores/useSale'
 import { useDevice } from '../hooks/useDevice'
 import { CurrencyKeypad, formatCents } from '../components/CurrencyKeypad'
 import { api } from '../lib/api'
+import { track } from '../lib/diag'
 
 type Method = 'cash' | 'debit' | 'credit' | 'pix' | 'voucher' | 'conta_receita'
 
@@ -35,7 +36,15 @@ export default function Pagamento() {
   const [confirmClose, setConfirmClose] = useState(false)
 
   useEffect(() => { if (!saleOperator) navigate('/venda') }, [saleOperator, navigate])
-  useEffect(() => { if (saleId) loadSale(saleId) }, [saleId, loadSale])
+  useEffect(() => {
+    if (!saleId) return
+    const shown = useSale.getState().currentSale
+    track('pagamento_mount', { saleId, shownSaleId: shown?.id ?? null, shownTable: shown?.tableNumber ?? null, mismatch: !!shown && shown.id !== saleId })
+    loadSale(saleId)
+  }, [saleId, loadSale])
+  useEffect(() => {
+    if (saleId && currentSale?.id === saleId) track('pagamento_loaded', { saleId, tableNumber: currentSale.tableNumber, status: currentSale.status, total: currentSale.total, paid: currentSale.payments?.reduce((s, p) => s + p.amount, 0) ?? 0 })
+  }, [saleId, currentSale?.id]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (currentSale) {
       const paid = currentSale.payments?.reduce((s, p) => s + p.amount, 0) ?? 0
@@ -63,13 +72,26 @@ export default function Pagamento() {
 
   const handleEncerrarMesa = async () => {
     if (!saleId) return
+    track('close_table', { saleId })
     await cancelSale(saleId)
     navigate('/mesa')
   }
 
   const handleOk = async () => {
     if (!saleId || cents <= 0) return
-    const result = await registerPayment(saleId, method, amountToApply / 100)
+    const shown = useSale.getState().currentSale
+    track('pay', {
+      saleId, method, amount: amountToApply / 100, cents, splitPeople,
+      shownSaleId: shown?.id ?? null, shownTable: shown?.tableNumber ?? null, shownStatus: shown?.status ?? null, mismatch: !!shown && shown.id !== saleId,
+    })
+    let result: Awaited<ReturnType<typeof registerPayment>>
+    try {
+      result = await registerPayment(saleId, method, amountToApply / 100)
+    } catch (err) {
+      track('pay_failed', { saleId, error: (err as Error).message })
+      throw err // comportamento original: erro não tratado na tela
+    }
+    track('pay_ok', { saleId, status: result.status, total: result.total, paid: result.payments.reduce((s, p) => s + p.amount, 0) })
     if (result.status === 'paid') {
       setDone(true)
       if (result.type !== 'table') {

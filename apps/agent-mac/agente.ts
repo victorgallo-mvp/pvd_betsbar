@@ -27,6 +27,24 @@ import { spawn } from 'node:child_process'
 const API_URL          = (process.env.RAILWAY_API_URL ?? 'http://localhost:3000').replace(/\/$/, '')
 const PRINTER_WIDTH    = Number(process.env.PRINTER_WIDTH ?? 80) as 58 | 80
 const POLL_MS          = Number(process.env.POLL_MS ?? 5000)
+
+// ─── Diagnóstico ──────────────────────────────────────────────
+// Identifica este agente e reporta à API o que acontece com cada job
+// (tentativa, falha, duração, ciclo sobreposto). Ver apps/api/src/routes/diag.ts.
+import { hostname } from 'node:os'
+const AGENT_ID = `${hostname()}:${process.pid}`
+let polling = false
+let pollSeq = 0
+
+async function diag(type: string, data: Record<string, unknown>): Promise<void> {
+  try {
+    await fetch(`${API_URL}/diag/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: 'agent', deviceId: AGENT_ID, events: [{ type, ts: new Date().toISOString(), data: { ...data, agentId: AGENT_ID } }] }),
+    })
+  } catch { /* diagnóstico nunca bloqueia impressão */ }
+}
 // Quando definido, usa a string de interface diretamente em vez de TCP (ex: "printer:POS-80")
 const PRINTER_IFACE    = process.env.PRINTER_INTERFACE ?? null
 const KITCHEN_IFACE    = process.env.KITCHEN_INTERFACE ?? null
@@ -236,12 +254,13 @@ async function fetchPending(): Promise<PrintJob[]> {
   return res.json() as Promise<PrintJob[]>
 }
 
-async function markJob(jobId: string, action: 'printed' | 'skipped') {
-  await fetch(`${API_URL}/print/${jobId}`, {
+async function markJob(jobId: string, action: 'printed' | 'skipped' | 'failed', extra: { error?: string; durationMs?: number } = {}) {
+  const res = await fetch(`${API_URL}/print/${jobId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action }),
+    body: JSON.stringify({ action, agentId: AGENT_ID, ...extra }),
   })
+  if (!res.ok) throw new Error(`PATCH /print/${jobId} retornou ${res.status}`)
 }
 
 interface KitchenCancelPayload {
@@ -305,24 +324,54 @@ async function processJob(job: PrintJob): Promise<void> {
 }
 
 async function poll(): Promise<void> {
-  let jobs: PrintJob[]
+  const seq = ++pollSeq
+  if (polling) {
+    // Ciclo anterior ainda rodando: comportamento mantido (o ciclo novo segue), só registra
+    console.warn(`[agent] ciclo ${seq} iniciou com o anterior ainda em andamento`)
+    void diag('agent.poll_overlap', { seq })
+  }
+  polling = true
+  const started = Date.now()
   try {
-    jobs = await fetchPending()
-  } catch (err) {
-    console.error('[agent] Erro ao buscar jobs:', (err as Error).message)
-    return
-  }
-
-  for (const job of jobs) {
+    let jobs: PrintJob[]
     try {
-      await processJob(job)
-      await markJob(job.id, 'printed')
-      console.log(`[agent] ✓ Job ${job.id} (${job.type}) impresso`)
+      jobs = await fetchPending()
     } catch (err) {
-      console.error(`[agent] ✗ Job ${job.id} falhou:`, (err as Error).message)
-      // deixa pendente para tentar no próximo ciclo
+      console.error('[agent] Erro ao buscar jobs:', (err as Error).message)
+      void diag('agent.fetch_failed', { error: (err as Error).message })
+      return
     }
+
+    for (const job of jobs) {
+      const t0 = Date.now()
+      const tableNumber = tableOf(job.payload)
+      try {
+        await processJob(job)
+        const durationMs = Date.now() - t0
+        console.log(`[agent] ✓ Job ${job.id} (${job.type}, mesa ${tableNumber ?? '-'}) impresso em ${durationMs}ms`)
+        try {
+          await markJob(job.id, 'printed', { durationMs })
+        } catch (err) {
+          // Impresso mas não marcado: no próximo ciclo sairia de novo. Registra para rastrear duplicatas.
+          console.error(`[agent] ! Job ${job.id} impresso mas falhou ao marcar:`, (err as Error).message)
+          void diag('agent.mark_failed', { jobId: job.id, jobType: job.type, tableNumber, error: (err as Error).message })
+        }
+      } catch (err) {
+        const durationMs = Date.now() - t0
+        console.error(`[agent] ✗ Job ${job.id} (${job.type}, mesa ${tableNumber ?? '-'}) falhou em ${durationMs}ms:`, (err as Error).message)
+        // deixa pendente para tentar no próximo ciclo; a API conta a tentativa
+        markJob(job.id, 'failed', { error: (err as Error).message, durationMs }).catch(() => {})
+      }
+    }
+  } finally {
+    polling = false
+    const ms = Date.now() - started
+    if (ms > POLL_MS) void diag('agent.slow_poll', { seq, ms })
   }
+}
+
+function tableOf(payload: string): number | null {
+  try { const t = (JSON.parse(payload) as { tableNumber?: number | null }).tableNumber; return typeof t === 'number' ? t : null } catch { return null }
 }
 
 // ─── Start ────────────────────────────────────────────────────
@@ -359,6 +408,11 @@ async function start() {
   console.log(`[agent] Impressora cozinha: ${KITCHEN_IFACE ?? `${KITCHEN_IP}:${KITCHEN_PORT}`}`)
   console.log(`[agent] Polling a cada ${POLL_MS}ms\n`)
 
+  void diag('agent.start', {
+    printer: PRINTER_IFACE ?? `${PRINTER_IP}:${PRINTER_PORT}`,
+    kitchen: KITCHEN_IFACE ?? `${KITCHEN_IP}:${KITCHEN_PORT}`,
+    pollMs: POLL_MS, node: process.version, platform: process.platform,
+  })
   void poll()
   setInterval(() => void poll(), POLL_MS)
 }

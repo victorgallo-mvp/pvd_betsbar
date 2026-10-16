@@ -1,4 +1,5 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect, useRef } from 'react'
+import { Routes, Route, Navigate, useLocation, useNavigationType } from 'react-router-dom'
 import LoginPin from './pages/LoginPin'
 import MenuPrincipal from './pages/MenuPrincipal'
 import VendaEntry from './pages/VendaEntry'
@@ -18,7 +19,32 @@ import Configurar from './pages/Configurar'
 import Consulta from './pages/Consulta'
 import Cardapio from './pages/Cardapio'
 import { useAuth } from './stores/useAuth'
+import { useSale } from './stores/useSale'
+import { setDiagContextProvider, startDiag, track } from './lib/diag'
 import type { UserRole } from '@pdv/shared'
+
+// Contexto lido pelos cabeçalhos e eventos de diagnóstico (ver lib/diag.ts)
+setDiagContextProvider(() => {
+  const sale = useSale.getState()
+  return {
+    operatorId: sale.saleOperator?.id ?? useAuth.getState().user?.id ?? null,
+    screenSaleId: sale.currentSale?.id ?? null,
+    screenTable: sale.currentSale?.tableNumber ?? null,
+  }
+})
+
+// Registra toda mudança de rota, inclusive voltar/avançar do navegador (POP)
+function DiagNavigation() {
+  const location = useLocation()
+  const navType = useNavigationType()
+  const prev = useRef<string | null>(null)
+  useEffect(() => {
+    track('nav', { path: location.pathname, navType, from: prev.current })
+    prev.current = location.pathname
+  }, [location.pathname, navType])
+  useEffect(() => { startDiag() }, [])
+  return null
+}
 
 const ROLE_LEVEL: Record<UserRole, number> = { admin: 3, operator: 2, waiter: 1 }
 
@@ -43,6 +69,8 @@ export { hasMinRole }
 
 export default function App() {
   return (
+    <>
+    <DiagNavigation />
     <Routes>
       <Route path="/cardapio" element={<Cardapio />} />
 
@@ -74,5 +102,6 @@ export default function App() {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   )
 }
