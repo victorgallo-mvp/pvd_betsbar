@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Delete } from 'lucide-react'
 import { useAuth } from '../stores/useAuth'
+import { PIN_LENGTH } from '@pdv/shared'
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫']
 
@@ -31,7 +32,7 @@ export default function LoginPin() {
     const next = pin + key
     setPin(next)
 
-    if (next.length === 4) {
+    if (next.length === PIN_LENGTH) {
       const ok = await login(next)
       if (ok) navigate('/')
       // error triggers shake via useEffect above
@@ -48,8 +49,8 @@ export default function LoginPin() {
         </div>
 
         {/* PIN dots */}
-        <div className={`flex gap-4 ${shake ? 'animate-shake' : ''}`}>
-          {[0, 1, 2, 3].map((i) => (
+        <div className={`flex gap-3 ${shake ? 'animate-shake' : ''}`}>
+          {Array.from({ length: PIN_LENGTH }, (_, i) => i).map((i) => (
             <div
               key={i}
               className={`w-4 h-4 rounded-full border-2 transition-all duration-150 ${
@@ -75,7 +76,7 @@ export default function LoginPin() {
               <button
                 key={idx}
                 onClick={() => handleKey(key)}
-                disabled={isLoading || (pin.length >= 4 && key !== '⌫')}
+                disabled={isLoading || (pin.length >= PIN_LENGTH && key !== '⌫')}
                 className="
                   aspect-square rounded-xl text-xl font-semibold
                   bg-slate-700 hover:bg-slate-600 active:bg-slate-500

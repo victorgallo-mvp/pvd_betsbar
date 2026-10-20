@@ -90,7 +90,17 @@ export const AdminService = {
     })
   },
 
+  // PIN repetido deixaria um usuário entrar como outro (login compara contra todos).
+  async assertPinUnique(pin: string, exceptUserId?: string) {
+    const users = await prisma.user.findMany({ select: { id: true, pin: true, name: true } })
+    for (const u of users) {
+      if (u.id === exceptUserId) continue
+      if (await bcrypt.compare(pin, u.pin)) throw new Error('Esse PIN já está em uso por outro usuário')
+    }
+  },
+
   async createUser(data: { name: string; pin: string; role: string }) {
+    await AdminService.assertPinUnique(data.pin)
     const hashedPin = await bcrypt.hash(data.pin, 10)
     return prisma.user.create({
       data: { name: data.name, pin: hashedPin, role: data.role },
@@ -110,6 +120,7 @@ export const AdminService = {
   },
 
   async changePin(id: string, newPin: string) {
+    await AdminService.assertPinUnique(newPin, id)
     const hashedPin = await bcrypt.hash(newPin, 10)
     return prisma.user.update({
       where: { id },

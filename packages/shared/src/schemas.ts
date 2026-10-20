@@ -2,8 +2,11 @@ import { z } from 'zod'
 import { PaymentMethod, SaleType, TableStatus, UserRole } from './types.js'
 
 // Auth
+// PIN: exatamente 6 dígitos (vale para login, criação e troca)
+export const PIN_LENGTH = 6
+export const PinSchema = z.string().regex(/^\d{6}$/, 'PIN deve ter 6 dígitos')
 export const LoginSchema = z.object({
-  pin: z.string().min(4).max(8),
+  pin: PinSchema,
 })
 export type LoginInput = z.infer<typeof LoginSchema>
 

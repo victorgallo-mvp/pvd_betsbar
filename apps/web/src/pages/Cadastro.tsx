@@ -336,24 +336,29 @@ function UsuariosTab() {
   const [editing, setEditing] = useState<UserRow | null>(null)
   const [adding, setAdding] = useState(false)
   const [form, setForm] = useState({ name: '', pin: '', role: 'operator' })
+  const [err, setErr] = useState('')
 
   const load = () => api.get<UserRow[]>('/admin/users').then(setItems)
   useEffect(() => { load() }, [])
 
-  const openAdd = () => { setForm({ name: '', pin: '', role: 'operator' }); setAdding(true) }
-  const openEdit = (u: UserRow) => { setForm({ name: u.name, pin: '', role: u.role }); setEditing(u) }
+  const openAdd = () => { setForm({ name: '', pin: '', role: 'operator' }); setErr(''); setAdding(true) }
+  const openEdit = (u: UserRow) => { setForm({ name: u.name, pin: '', role: u.role }); setErr(''); setEditing(u) }
 
   const save = async () => {
-    if (editing) {
-      const payload: Record<string, unknown> = { name: form.name, role: form.role }
-      if (form.pin) payload.pin = form.pin
-      await api.patch(`/admin/users/${editing.id}`, payload)
-      setEditing(null)
-    } else {
-      await api.post('/admin/users', form)
-      setAdding(false)
-    }
-    load()
+    setErr('')
+    if (form.pin && !/^\d{6}$/.test(form.pin)) { setErr('PIN deve ter 6 dígitos'); return }
+    try {
+      if (editing) {
+        const payload: Record<string, unknown> = { name: form.name, role: form.role }
+        if (form.pin) payload.pin = form.pin
+        await api.patch(`/admin/users/${editing.id}`, payload)
+        setEditing(null)
+      } else {
+        await api.post('/admin/users', form)
+        setAdding(false)
+      }
+      load()
+    } catch (e) { setErr((e as Error).message) }
   }
 
   const toggle = async (u: UserRow) => { await api.patch(`/admin/users/${u.id}`, { active: !u.active }); load() }
@@ -361,9 +366,10 @@ function UsuariosTab() {
   const FormContent = ({ isEdit }: { isEdit: boolean }) => (
     <>
       <Field label="Nome"><TextInput value={form.name} onChange={v => setForm(f => ({ ...f, name: v }))} placeholder="Nome do operador" /></Field>
-      <Field label={isEdit ? 'Novo PIN (deixe vazio para manter)' : 'PIN (4 dígitos)'}>
-        <TextInput value={form.pin} onChange={v => setForm(f => ({ ...f, pin: v }))} placeholder={isEdit ? 'Opcional' : '1234'} type="password" />
+      <Field label={isEdit ? 'Novo PIN de 6 dígitos (deixe vazio para manter)' : 'PIN (6 dígitos)'}>
+        <TextInput value={form.pin} onChange={v => setForm(f => ({ ...f, pin: v.replace(/\D/g, '').slice(0, 6) }))} placeholder={isEdit ? 'Opcional' : '••••••'} type="password" />
       </Field>
+      {err && <span className="text-rose-400 text-xs">{err}</span>}
       <Field label="Perfil">
         <div className="flex gap-2">
           {ROLES.map(r => (
