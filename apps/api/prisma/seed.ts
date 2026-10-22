@@ -4,6 +4,13 @@ import bcrypt from 'bcryptjs'
 const prisma = new PrismaClient()
 
 async function main() {
+  // Proteção: este seed é só para banco vazio (dados de demonstração). Em produção os
+  // clientes apagam esses produtos, e rodar de novo os recriava. Força com SEED_FORCE=1.
+  const existing = await prisma.product.count()
+  if (existing > 0 && process.env.SEED_FORCE !== '1') {
+    console.log(`⏭  Seed ignorado: banco já tem ${existing} produtos (use SEED_FORCE=1 para forçar).`)
+    return
+  }
   console.log('🌱 Seeding database...')
 
   // Users
