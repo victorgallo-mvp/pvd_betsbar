@@ -6,6 +6,8 @@ import {
   AddItemSchema,
   RequestBillSchema,
   RegisterPaymentSchema,
+  MoveItemSchema,
+  AddGuestSchema,
 } from '@pdv/shared'
 
 export const salesRoutes: FastifyPluginAsync = async (app) => {
@@ -44,7 +46,55 @@ export const salesRoutes: FastifyPluginAsync = async (app) => {
     const { id } = request.params as { id: string }
     const parsed = AddItemSchema.safeParse(request.body)
     if (!parsed.success) return reply.status(400).send({ error: parsed.error.flatten() })
-    return SaleService.addItem(id, parsed.data)
+    try {
+      return await SaleService.addItem(id, parsed.data)
+    } catch (err) {
+      return reply.status(400).send({ error: (err as Error).message })
+    }
+  })
+
+  // PATCH /sales/:id/items/:itemId — mover item para uma pessoa (guestId null = mesa)
+  app.patch('/:id/items/:itemId', async (request, reply) => {
+    const { id, itemId } = request.params as { id: string; itemId: string }
+    const parsed = MoveItemSchema.safeParse(request.body)
+    if (!parsed.success) return reply.status(400).send({ error: parsed.error.flatten() })
+    try {
+      return await SaleService.moveItem(id, itemId, parsed.data.guestId)
+    } catch (err) {
+      return reply.status(400).send({ error: (err as Error).message })
+    }
+  })
+
+  // Pessoas da mesa (divisão por pessoa)
+  app.post('/:id/guests', async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const parsed = AddGuestSchema.safeParse(request.body)
+    if (!parsed.success) return reply.status(400).send({ error: parsed.error.flatten() })
+    try {
+      return reply.status(201).send(await SaleService.addGuest(id, parsed.data.name))
+    } catch (err) {
+      return reply.status(400).send({ error: (err as Error).message })
+    }
+  })
+
+  app.patch('/:id/guests/:guestId', async (request, reply) => {
+    const { id, guestId } = request.params as { id: string; guestId: string }
+    const parsed = AddGuestSchema.safeParse(request.body)
+    if (!parsed.success) return reply.status(400).send({ error: parsed.error.flatten() })
+    try {
+      return await SaleService.renameGuest(id, guestId, parsed.data.name)
+    } catch (err) {
+      return reply.status(400).send({ error: (err as Error).message })
+    }
+  })
+
+  app.delete('/:id/guests/:guestId', async (request, reply) => {
+    const { id, guestId } = request.params as { id: string; guestId: string }
+    try {
+      return await SaleService.removeGuest(id, guestId)
+    } catch (err) {
+      return reply.status(400).send({ error: (err as Error).message })
+    }
   })
 
   // DELETE /sales/:id/items/:itemId — remove 1 unit (pending items only)
@@ -70,7 +120,11 @@ export const salesRoutes: FastifyPluginAsync = async (app) => {
     const { id } = request.params as { id: string }
     const parsed = RequestBillSchema.safeParse(request.body)
     if (!parsed.success) return reply.status(400).send({ error: parsed.error.flatten() })
-    return SaleService.requestBill(id, parsed.data)
+    try {
+      return await SaleService.requestBill(id, parsed.data)
+    } catch (err) {
+      return reply.status(400).send({ error: (err as Error).message })
+    }
   })
 
   // PATCH /sales/:id/items/:itemId/cancel — cancel a sent item + queue kitchen cancel notice
@@ -110,6 +164,10 @@ export const salesRoutes: FastifyPluginAsync = async (app) => {
     const { id } = request.params as { id: string }
     const parsed = RegisterPaymentSchema.safeParse(request.body)
     if (!parsed.success) return reply.status(400).send({ error: parsed.error.flatten() })
-    return SaleService.registerPayment(id, parsed.data)
+    try {
+      return await SaleService.registerPayment(id, parsed.data)
+    } catch (err) {
+      return reply.status(400).send({ error: (err as Error).message })
+    }
   })
 }

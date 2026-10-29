@@ -18,22 +18,39 @@ export const TableStatusSchema = z.enum([
 ])
 
 // Sales
+export const GuestNameSchema = z.string().trim().min(1, 'Nome obrigatório').max(40)
+
 export const OpenSaleSchema = z.object({
   type: z.enum([SaleType.TABLE, SaleType.COUNTER, SaleType.DELIVERY]),
   tableId: z.string().optional(),
   customerName: z.string().optional(),
   customerAddress: z.string().optional(),
+  // Pessoas da mesa informadas já na abertura (opcional)
+  guests: z.array(GuestNameSchema).max(20).optional(),
 })
 export type OpenSaleInput = z.infer<typeof OpenSaleSchema>
 
 export const AddItemSchema = z.object({
   productId: z.string(),
   qty: z.number().int().positive(),
+  // null/ausente = item da mesa (compartilhado)
+  guestId: z.string().nullable().optional(),
 })
 export type AddItemInput = z.infer<typeof AddItemSchema>
 
+// Mover item para outra pessoa (null = volta para a mesa)
+export const MoveItemSchema = z.object({
+  guestId: z.string().nullable(),
+})
+export type MoveItemInput = z.infer<typeof MoveItemSchema>
+
+export const AddGuestSchema = z.object({ name: GuestNameSchema })
+export type AddGuestInput = z.infer<typeof AddGuestSchema>
+
 export const RequestBillSchema = z.object({
   peopleCount: z.number().int().positive(),
+  // Conta de uma pessoa só; ausente = mesa toda
+  guestId: z.string().nullable().optional(),
 })
 export type RequestBillInput = z.infer<typeof RequestBillSchema>
 
@@ -47,6 +64,8 @@ export const RegisterPaymentSchema = z.object({
     PaymentMethod.CONTA_RECEITA,
   ]),
   amount: z.number().positive(),
+  // Pagamento atribuído a uma pessoa da mesa (opcional)
+  guestId: z.string().nullable().optional(),
 })
 export type RegisterPaymentInput = z.infer<typeof RegisterPaymentSchema>
 

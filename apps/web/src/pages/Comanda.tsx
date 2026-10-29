@@ -2,21 +2,24 @@ import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Check, Receipt, X, Pencil,
-  Plus, Minus, ArrowRightLeft, CheckCheck, ShoppingCart, List, DoorOpen, Loader,
+  Plus, Minus, ArrowRightLeft, CheckCheck, ShoppingCart, List, DoorOpen, Loader, Users, UserPlus, Trash2,
 } from 'lucide-react'
 import { useSale } from '../stores/useSale'
 import { useDevice } from '../hooks/useDevice'
-import type { CategoryDTO, ProductDTO, SaleItemDTO } from '@pdv/shared'
+import type { CategoryDTO, ProductDTO, SaleItemDTO, SaleGuestDTO } from '@pdv/shared'
+import { computeShares } from '@pdv/shared'
 import { api } from '../lib/api'
 import { track } from '../lib/diag'
+import { useFeatures } from '../lib/features'
 
 
 function fmtBRL(n: number) {
   return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
-function AddQtyDialog({ product, onConfirm, onClose }: {
+function AddQtyDialog({ product, guestName, onConfirm, onClose }: {
   product: ProductDTO
+  guestName?: string | null
   onConfirm: (qty: number) => void
   onClose: () => void
 }) {
@@ -35,7 +38,11 @@ function AddQtyDialog({ product, onConfirm, onClose }: {
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
       <div className="bg-slate-800 rounded-2xl p-6 w-80 shadow-2xl border border-slate-700">
         <h2 className="text-lg font-bold text-slate-100 leading-tight">{product.name}</h2>
-        <p className="text-emerald-400 font-semibold text-sm mb-6">{fmtBRL(product.price)} / un.</p>
+        <p className="text-emerald-400 font-semibold text-sm mb-1">{fmtBRL(product.price)} / un.</p>
+        {guestName !== undefined && (
+          <p className="text-xs text-slate-400 mb-5">para <span className="text-sky-300 font-semibold">{guestName ?? 'a mesa'}</span></p>
+        )}
+        {guestName === undefined && <div className="mb-5" />}
         <div className="flex items-center justify-between mb-6">
           <button
             onPointerDown={() => startRepeat(() => setQty(q => Math.max(1, q - 1)))}
@@ -122,6 +129,134 @@ function FecharMesaDialog({ onConfirm, onClose }: { onConfirm: () => void; onClo
   )
 }
 
+// ── Divisão por pessoa ────────────────────────────────────────
+
+function GuestNameDialog({ title, current, onSave, onRemove, onClose }: {
+  title: string
+  current?: string
+  onSave: (name: string) => Promise<void>
+  onRemove?: () => Promise<void>
+  onClose: () => void
+}) {
+  const [value, setValue] = useState(current ?? '')
+  const [err, setErr] = useState('')
+  const [busy, setBusy] = useState(false)
+  const submit = async () => {
+    const name = value.trim()
+    if (!name) { setErr('Digite um nome'); return }
+    setBusy(true)
+    try { await onSave(name) } catch (e) { setErr((e as Error).message); setBusy(false) }
+  }
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+      <div className="bg-slate-800 rounded-2xl p-6 w-80 shadow-2xl border border-slate-700">
+        <h2 className="text-lg font-bold text-slate-100 mb-4">{title}</h2>
+        <input
+          type="text"
+          value={value}
+          onChange={e => { setValue(e.target.value); setErr('') }}
+          onKeyDown={e => { if (e.key === 'Enter') submit() }}
+          placeholder="Ex: Victor"
+          autoFocus
+          maxLength={40}
+          className="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-500 text-sm mb-2"
+        />
+        {err && <p className="text-rose-400 text-xs mb-2">{err}</p>}
+        <div className="flex gap-3 mt-2">
+          <button onClick={onClose} className="flex-1 py-2 rounded-xl bg-slate-700 text-slate-300 touch-btn">Voltar</button>
+          <button onClick={submit} disabled={busy} className="flex-1 py-2 rounded-xl bg-sky-700 hover:bg-sky-600 text-white font-bold touch-btn disabled:opacity-50">Salvar</button>
+        </div>
+        {onRemove && (
+          <button
+            onClick={async () => { setBusy(true); try { await onRemove() } catch (e) { setErr((e as Error).message); setBusy(false) } }}
+            disabled={busy}
+            className="w-full mt-3 py-2 rounded-xl bg-rose-900/40 hover:bg-rose-800 text-rose-300 text-sm font-medium touch-btn flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <Trash2 size={14} /> Remover pessoa (itens voltam para a mesa)
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function MoveItemDialog({ item, guests, onMove, onClose }: {
+  item: SaleItemDTO
+  guests: SaleGuestDTO[]
+  onMove: (guestId: string | null) => void
+  onClose: () => void
+}) {
+  const targets: { id: string | null; name: string }[] = [{ id: null, name: 'Mesa (compartilhado)' }, ...guests.map(g => ({ id: g.id, name: g.name }))]
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+      <div className="bg-slate-800 rounded-2xl p-6 w-80 shadow-2xl border border-slate-700">
+        <h2 className="text-lg font-bold text-slate-100 mb-1">Mover item</h2>
+        <p className="text-slate-400 text-sm mb-4">{item.qty}× <span className="text-slate-200 font-medium">{item.productName}</span></p>
+        <div className="space-y-2 mb-4 max-h-64 overflow-y-auto">
+          {targets.map(t => {
+            const current = (item.guestId ?? null) === t.id
+            return (
+              <button key={t.id ?? 'mesa'} onClick={() => !current && onMove(t.id)} disabled={current}
+                className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium touch-btn flex items-center gap-2
+                  ${current ? 'bg-sky-900/40 text-sky-300 border border-sky-700' : 'bg-slate-700 text-slate-200 hover:bg-slate-600'}`}>
+                {t.id === null ? <Users size={14} /> : <span className="w-3.5" />}
+                <span className="flex-1 truncate">{t.name}</span>
+                {current && <span className="text-[10px] uppercase">atual</span>}
+              </button>
+            )
+          })}
+        </div>
+        <button onClick={onClose} className="w-full py-2 rounded-xl bg-slate-700 text-slate-300 touch-btn">Voltar</button>
+      </div>
+    </div>
+  )
+}
+
+function ContaDialog({ guests, shares, onPick, onClose }: {
+  guests: SaleGuestDTO[]
+  shares: ReturnType<typeof computeShares>
+  onPick: (guestId: string | null) => void
+  onClose: () => void
+}) {
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+      <div className="bg-slate-800 rounded-2xl p-6 w-80 shadow-2xl border border-slate-700">
+        <h2 className="text-lg font-bold text-slate-100 mb-1">Conta de quem?</h2>
+        <p className="text-slate-500 text-xs mb-4">Cada pessoa paga só os itens dela. Itens lançados na mesa ficam para dividir manualmente.</p>
+        <div className="space-y-2 mb-4 max-h-72 overflow-y-auto">
+          <button onClick={() => onPick(null)}
+            className="w-full text-left px-4 py-3 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white touch-btn flex items-center gap-2">
+            <Users size={16} />
+            <span className="flex-1 font-semibold">Mesa toda</span>
+            <span className="font-bold">{fmtBRL(shares.dueCents / 100)}</span>
+          </button>
+          {shares.sharedCents > 0 && (
+            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-700/40 border border-dashed border-slate-600 text-slate-400 text-xs">
+              <Users size={12} />
+              <span className="flex-1">Itens da mesa (sem pessoa)</span>
+              <span className="font-semibold text-slate-300">{fmtBRL(shares.sharedCents / 100)}</span>
+            </div>
+          )}
+          {shares.guests.map(g => (
+            <button key={g.guestId} onClick={() => onPick(g.guestId)}
+              className="w-full text-left px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 touch-btn flex items-center gap-2">
+              <span className="flex-1 truncate">
+                <span className="font-medium">{g.name}</span>
+                {g.paidCents > 0 && <span className="text-xs text-emerald-400 ml-2">pago {fmtBRL(g.paidCents / 100)}</span>}
+              </span>
+              <span className="text-right">
+                <span className="block font-semibold text-sm">{fmtBRL(g.totalCents / 100)}</span>
+                {g.dueCents !== g.totalCents && <span className="block text-[10px] text-amber-400">falta {fmtBRL(g.dueCents / 100)}</span>}
+              </span>
+            </button>
+          ))}
+        </div>
+        <button onClick={onClose} className="w-full py-2 rounded-xl bg-slate-700 text-slate-300 touch-btn">Voltar</button>
+      </div>
+    </div>
+  )
+}
+
 // Category color mapping (matches seed)
 const CATEGORY_COLORS: Record<string, string> = {
   cat_favoritos: 'bg-amber-600 hover:bg-amber-500',
@@ -137,9 +272,10 @@ const CATEGORY_COLORS: Record<string, string> = {
 export default function Comanda() {
   const { saleId } = useParams<{ saleId: string }>()
   const navigate = useNavigate()
-  const { saleOperator, currentSale, loadSale, addItem, removeItem, cancelItem, updateSale, concludeItems, requestBill, cancelSale } =
+  const { saleOperator, currentSale, loadSale, addItem, removeItem, cancelItem, moveItem, addGuest, renameGuest, removeGuest, updateSale, concludeItems, requestBill, cancelSale } =
     useSale()
   const { isPOS } = useDevice()
+  const features = useFeatures()
 
   const [categories, setCategories] = useState<CategoryDTO[]>([])
   const [products, setProducts] = useState<ProductDTO[]>([])
@@ -152,6 +288,13 @@ export default function Comanda() {
   const [posTab, setPosTab] = useState<'products' | 'pedido'>('products')
   const [concluding, setConcluding] = useState(false)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'warning' } | null>(null)
+
+  // Divisão por pessoa: destino dos próximos itens (null = mesa) e diálogos
+  const [targetGuest, setTargetGuest] = useState<string | null>(null)
+  const [addingGuest, setAddingGuest] = useState(false)
+  const [editingGuest, setEditingGuest] = useState<SaleGuestDTO | null>(null)
+  const [movingItem, setMovingItem] = useState<SaleItemDTO | null>(null)
+  const [showConta, setShowConta] = useState(false)
 
   // Require sale operator
   useEffect(() => {
@@ -189,16 +332,16 @@ export default function Comanda() {
     api.get<ProductDTO[]>(`/products${query}`).then(setProducts)
   }, [selectedCat])
 
-  const handleAddProduct = async (productId: string, qty = 1) => {
+  const handleAddProduct = async (productId: string, qty = 1, guestId: string | null = targetGuest) => {
     if (!saleId || addingItem) return
     setAddingItem(productId)
     const shown = useSale.getState().currentSale
     track('add_item', {
-      saleId, productId, qty,
+      saleId, productId, qty, guestId,
       shownSaleId: shown?.id ?? null, shownTable: shown?.tableNumber ?? null, mismatch: !!shown && shown.id !== saleId,
     })
     const errBefore = useSale.getState().error
-    await addItem(saleId, productId, qty)
+    await addItem(saleId, productId, qty, guestId)
     const errAfter = useSale.getState().error
     if (errAfter && errAfter !== errBefore) track('add_item_failed', { saleId, productId, error: errAfter })
     setAddingItem(null)
@@ -246,14 +389,55 @@ export default function Comanda() {
 
   const handleConta = async () => {
     if (!saleId) return
+    if ((currentSale?.guests.length ?? 0) > 0) { setShowConta(true); return }
+    await emitirConta(null)
+  }
+
+  // guestId = conta de uma pessoa só; null = mesa toda
+  const emitirConta = async (guestId: string | null) => {
+    if (!saleId) return
+    setShowConta(false)
     const shown = useSale.getState().currentSale
-    track('bill', { saleId, shownSaleId: shown?.id ?? null, shownTable: shown?.tableNumber ?? null, mismatch: !!shown && shown.id !== saleId })
+    track('bill', { saleId, guestId, shownSaleId: shown?.id ?? null, shownTable: shown?.tableNumber ?? null, mismatch: !!shown && shown.id !== saleId })
     const errBefore = useSale.getState().error
-    await requestBill(saleId, 1)
+    await requestBill(saleId, 1, guestId)
     const errAfter = useSale.getState().error
-    if (errAfter && errAfter !== errBefore) track('bill_failed', { saleId, error: errAfter })
+    if (errAfter && errAfter !== errBefore) track('bill_failed', { saleId, guestId, error: errAfter })
     showToast('Comprovante enviado para impressora ✓', 'success')
-    navigate(`/pagamento/${saleId}`)
+    navigate(`/pagamento/${saleId}${guestId ? `?guest=${guestId}` : ''}`)
+  }
+
+  const handleAddGuest = async (name: string) => {
+    if (!saleId) return
+    track('guest_add', { saleId, name })
+    await addGuest(saleId, name)
+    setAddingGuest(false)
+    const created = useSale.getState().currentSale?.guests.find(g => g.name === name)
+    if (created) setTargetGuest(created.id)
+    showToast(`${name} adicionado ✓`, 'success')
+  }
+
+  const handleRenameGuest = async (guest: SaleGuestDTO, name: string) => {
+    if (!saleId) return
+    track('guest_rename', { saleId, guestId: guest.id, from: guest.name, to: name })
+    await renameGuest(saleId, guest.id, name)
+    setEditingGuest(null)
+  }
+
+  const handleRemoveGuest = async (guest: SaleGuestDTO) => {
+    if (!saleId) return
+    track('guest_remove', { saleId, guestId: guest.id, name: guest.name })
+    await removeGuest(saleId, guest.id)
+    setEditingGuest(null)
+    if (targetGuest === guest.id) setTargetGuest(null)
+    showToast(`${guest.name} removido — itens voltaram para a mesa`, 'warning')
+  }
+
+  const handleMoveItem = async (item: SaleItemDTO, guestId: string | null) => {
+    if (!saleId) return
+    setMovingItem(null)
+    track('item_move', { saleId, itemId: item.id, from: item.guestId, to: guestId })
+    await moveItem(saleId, item.id, guestId)
   }
 
   const handleFecharMesa = async () => {
@@ -267,6 +451,19 @@ export default function Comanda() {
   const activeItems = sale?.items.filter((i) => !i.cancelled) ?? []
   const pendingCount = activeItems.filter((i) => !i.sentToProduction).length
   const canClose = activeItems.length === 0 || sale?.status === 'awaiting_payment'
+
+  const guests = sale?.guests ?? []
+  const hasGuests = guests.length > 0
+  // Faixa de pessoas aparece se a função está ligada ou se a mesa já tem pessoas
+  const showGuestBar = features.guests || hasGuests
+  const guestName = (id: string | null) => (id ? guests.find(g => g.id === id)?.name ?? null : null)
+  const targetGuestName = targetGuest ? guestName(targetGuest) : null
+  const shares = sale ? computeShares(sale) : null
+
+  // Pessoa selecionada foi removida (por este ou outro aparelho): volta para a mesa
+  useEffect(() => {
+    if (targetGuest && !guests.some(g => g.id === targetGuest)) setTargetGuest(null)
+  }, [guests, targetGuest])
 
   // ── Shared sub-panels ──────────────────────────────────────
 
@@ -299,20 +496,83 @@ export default function Comanda() {
     </div>
   )
 
+  // Faixa "Mesa / Victor / Adriana / +": quem recebe os próximos itens
+  const GuestBar = () => showGuestBar ? (
+    <div className="flex items-center gap-1.5 px-2 py-1.5 bg-slate-800/80 border-b border-slate-700 overflow-x-auto shrink-0">
+      <span className="text-[10px] uppercase text-slate-500 shrink-0 mr-1">Lançar para</span>
+      <button
+        onClick={() => setTargetGuest(null)}
+        className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold touch-btn shrink-0
+          ${targetGuest === null ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+      >
+        <Users size={12} /> Mesa
+      </button>
+      {guests.map(g => (
+        <button
+          key={g.id}
+          onClick={() => targetGuest === g.id ? setEditingGuest(g) : setTargetGuest(g.id)}
+          title={targetGuest === g.id ? 'Toque de novo para editar' : undefined}
+          className={`px-3 py-1.5 rounded-full text-xs font-semibold touch-btn shrink-0 max-w-[9rem] truncate
+            ${targetGuest === g.id ? 'bg-sky-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+        >
+          {g.name}
+        </button>
+      ))}
+      {features.guests && (
+        <button
+          onClick={() => setAddingGuest(true)}
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-semibold touch-btn shrink-0 border border-dashed border-slate-500 text-slate-400 hover:text-slate-200 hover:border-slate-300"
+        >
+          <UserPlus size={12} /> Pessoa
+        </button>
+      )}
+    </div>
+  ) : null
+
+  // Itens agrupados por pessoa (itens da mesa primeiro) quando há pessoas
+  const groupedItems = (): { key: string; label: string | null; guestId: string | null; items: SaleItemDTO[] }[] => {
+    if (!hasGuests) return [{ key: 'all', label: null, guestId: null, items: activeItems }]
+    const groups = [{ key: 'mesa', label: 'Mesa', guestId: null as string | null, items: activeItems.filter(i => !i.guestId || !guests.some(g => g.id === i.guestId)) }]
+    for (const g of guests) groups.push({ key: g.id, label: g.name, guestId: g.id, items: activeItems.filter(i => i.guestId === g.id) })
+    return groups.filter(gr => gr.items.length > 0 || gr.guestId !== null)
+  }
+
   const ItemList = () => (
     <div className="flex-1 overflow-y-auto p-2 space-y-1">
-      {activeItems.length === 0 ? (
+      {activeItems.length === 0 && !hasGuests ? (
         <div className="text-slate-600 text-sm p-4 text-center">
           {isPOS ? 'Vá para "Produtos" para adicionar itens.' : 'Nenhum item ainda. Toque nos produtos ao lado.'}
         </div>
       ) : (
-        activeItems.map((item, idx) => (
+        groupedItems().map((group) => (
+        <div key={group.key} className="space-y-1">
+          {group.label && (
+            <div className={`flex items-center justify-between px-2 pt-2 pb-0.5 text-xs font-semibold ${group.guestId ? 'text-sky-300' : 'text-emerald-300'}`}>
+              <span className="flex items-center gap-1.5 truncate">
+                {group.guestId ? null : <Users size={12} />}
+                {group.label}
+                {group.guestId === targetGuest && <span className="text-[9px] uppercase bg-slate-700 text-slate-300 px-1.5 rounded-full">recebendo</span>}
+              </span>
+              <span className="text-slate-400 font-normal">
+                {group.items.length === 0 ? 'sem itens' : fmtBRL(group.items.reduce((s, i) => s + i.subtotal, 0))}
+              </span>
+            </div>
+          )}
+          {group.items.map((item, idx) => (
           <div key={item.id} className={`flex items-center gap-2 px-2 py-2 rounded-lg ${item.sentToProduction ? 'bg-slate-800/50' : 'bg-slate-800'}`}>
             <span className="text-slate-600 text-xs w-5 shrink-0">{idx + 1}</span>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm text-slate-200 truncate font-medium">{item.productName}</div>
+            <button
+              onClick={() => hasGuests && setMovingItem(item)}
+              disabled={!hasGuests}
+              className="flex-1 min-w-0 text-left disabled:cursor-default"
+              title={hasGuests ? 'Toque para mover para outra pessoa' : undefined}
+            >
+              <div className="text-sm text-slate-200 truncate font-medium flex items-center gap-1.5">
+                <span className="truncate">{item.productName}</span>
+                {hasGuests && <ArrowRightLeft size={11} className="text-slate-500 shrink-0" />}
+              </div>
               <div className="text-xs text-slate-500">{item.qty} × {fmtBRL(item.unitPrice)}</div>
-            </div>
+            </button>
             {item.sentToProduction
               ? (
                 <div className="flex items-center gap-1.5 shrink-0">
@@ -330,7 +590,7 @@ export default function Comanda() {
                     className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-700 hover:bg-rose-700 active:bg-rose-600 text-slate-300 hover:text-white touch-btn"
                   ><Minus size={16} /></button>
                   <button
-                    onClick={() => handleAddProduct(item.productId)}
+                    onClick={() => handleAddProduct(item.productId, 1, item.guestId ?? null)}
                     disabled={addingItem === item.productId}
                     className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-700 hover:bg-emerald-700 active:bg-emerald-600 text-slate-300 hover:text-white disabled:opacity-40 touch-btn"
                   ><Plus size={16} /></button>
@@ -339,6 +599,8 @@ export default function Comanda() {
             }
             <span className="text-sm font-semibold text-slate-300 shrink-0 w-16 text-right">{fmtBRL(item.subtotal)}</span>
           </div>
+          ))}
+        </div>
         ))
       )}
     </div>
@@ -357,8 +619,19 @@ export default function Comanda() {
         </div>
         <span className="text-2xl font-bold text-emerald-400">{fmtBRL(sale?.total ?? 0)}</span>
       </div>
-      {sale?.perPersonAmount != null && sale.peopleCount != null && (
+      {sale?.perPersonAmount != null && sale.peopleCount != null && !hasGuests && (
         <div className="text-xs text-amber-400 mt-1">{fmtBRL(sale.perPersonAmount)} / pessoa ({sale.peopleCount} pessoas)</div>
+      )}
+      {hasGuests && shares && (
+        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-400">
+          {shares.guests.map(g => (
+            <span key={g.guestId}>
+              <span className="text-sky-300">{g.name}</span> {fmtBRL(g.totalCents / 100)}
+              {g.paidCents > 0 && <span className="text-emerald-400"> ✓</span>}
+            </span>
+          ))}
+          {shares.sharedCents > 0 && <span className="text-slate-500">mesa {fmtBRL(shares.sharedCents / 100)}</span>}
+        </div>
       )}
     </div>
   )
@@ -432,6 +705,7 @@ export default function Comanda() {
       <div className="h-full flex flex-col bg-slate-900">
         <Toast />
         <TopBar />
+        <GuestBar />
         <div className="flex-1 min-h-0 flex flex-col">
           {posTab === 'products' ? (
             <ProductPanel />
@@ -471,6 +745,7 @@ export default function Comanda() {
         />}
         {pendingProduct && <AddQtyDialog
           product={pendingProduct}
+          guestName={showGuestBar ? targetGuestName : undefined}
           onConfirm={async (qty) => { const prod = pendingProduct; setPendingProduct(null); await handleAddProduct(prod.id, qty) }}
           onClose={() => setPendingProduct(null)}
         />}
@@ -479,6 +754,16 @@ export default function Comanda() {
           onSave={handleSaveNome}
           onClose={() => setEditingNome(false)}
         />}
+        {addingGuest && <GuestNameDialog title="Nova pessoa na mesa" onSave={handleAddGuest} onClose={() => setAddingGuest(false)} />}
+        {editingGuest && <GuestNameDialog
+          title="Editar pessoa"
+          current={editingGuest.name}
+          onSave={(name) => handleRenameGuest(editingGuest, name)}
+          onRemove={() => handleRemoveGuest(editingGuest)}
+          onClose={() => setEditingGuest(null)}
+        />}
+        {movingItem && <MoveItemDialog item={movingItem} guests={guests} onMove={(gid) => handleMoveItem(movingItem, gid)} onClose={() => setMovingItem(null)} />}
+        {showConta && shares && <ContaDialog guests={guests} shares={shares} onPick={emitirConta} onClose={() => setShowConta(false)} />}
       </div>
     )
   }
@@ -490,6 +775,7 @@ export default function Comanda() {
       <TopBar />
       <div className="flex-1 flex min-h-0">
         <div className="w-[45%] flex flex-col border-r border-slate-700 min-h-0">
+          <GuestBar />
           <ItemList />
           <Totals />
           <ActionBar tablet />
@@ -504,6 +790,7 @@ export default function Comanda() {
       />}
       {pendingProduct && <AddQtyDialog
         product={pendingProduct}
+        guestName={showGuestBar ? targetGuestName : undefined}
         onConfirm={async (qty) => { const prod = pendingProduct; setPendingProduct(null); await handleAddProduct(prod.id, qty) }}
         onClose={() => setPendingProduct(null)}
       />}
@@ -512,6 +799,16 @@ export default function Comanda() {
         onSave={handleSaveNome}
         onClose={() => setEditingNome(false)}
       />}
+      {addingGuest && <GuestNameDialog title="Nova pessoa na mesa" onSave={handleAddGuest} onClose={() => setAddingGuest(false)} />}
+      {editingGuest && <GuestNameDialog
+        title="Editar pessoa"
+        current={editingGuest.name}
+        onSave={(name) => handleRenameGuest(editingGuest, name)}
+        onRemove={() => handleRemoveGuest(editingGuest)}
+        onClose={() => setEditingGuest(null)}
+      />}
+      {movingItem && <MoveItemDialog item={movingItem} guests={guests} onMove={(gid) => handleMoveItem(movingItem, gid)} onClose={() => setMovingItem(null)} />}
+      {showConta && shares && <ContaDialog guests={guests} shares={shares} onPick={emitirConta} onClose={() => setShowConta(false)} />}
     </div>
   )
 }

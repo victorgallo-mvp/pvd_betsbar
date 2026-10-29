@@ -12,6 +12,20 @@ interface KitchenItem {
   qty: number
   name: string
   notes: string | null
+  guest?: string | null // pessoa da mesa (divisão por pessoa); null = mesa
+}
+
+// Agrupa itens por pessoa mantendo a ordem: itens da mesa primeiro, depois cada pessoa
+function groupByGuest(items: KitchenItem[]): { guest: string | null; items: KitchenItem[] }[] {
+  const groups: { guest: string | null; items: KitchenItem[] }[] = []
+  for (const it of items) {
+    const key = it.guest ?? null
+    let g = groups.find((x) => x.guest === key)
+    if (!g) { g = { guest: key, items: [] }; groups.push(g) }
+    g.items.push(it)
+  }
+  groups.sort((a, b) => (a.guest === null ? -1 : b.guest === null ? 1 : 0))
+  return groups
 }
 
 interface KitchenPayload {
@@ -44,9 +58,13 @@ async function sendToKitchenPrinter(payload: KitchenPayload): Promise<void> {
     console.log(`${buildLabel(payload).padEnd(16)} Garcao: ${payload.operatorName}`)
     console.log(`Hora: ${time}`)
     console.log('--------------------------------')
-    for (const item of payload.items) {
-      console.log(`${item.qty}x  ${item.name.toUpperCase()}`)
-      if (item.notes) console.log(`    Obs: ${item.notes}`)
+    const hasGuests = payload.items.some((i) => i.guest)
+    for (const group of groupByGuest(payload.items)) {
+      if (hasGuests) console.log(`[ ${(group.guest ?? 'MESA').toUpperCase()} ]`)
+      for (const item of group.items) {
+        console.log(`${item.qty}x  ${item.name.toUpperCase()}`)
+        if (item.notes) console.log(`    Obs: ${item.notes}`)
+      }
     }
     console.log('================================\n')
     return
@@ -92,13 +110,21 @@ async function sendToKitchenPrinter(payload: KitchenPayload): Promise<void> {
   printer.println(`Garcao: ${payload.operatorName}   ${time}`)
   printer.drawLine()
 
-  for (const item of payload.items) {
-    printer.setTextDoubleHeight()
-    printer.bold(true)
-    printer.println(`${item.qty}x  ${item.name.toUpperCase()}`)
-    printer.setTextNormal()
-    printer.bold(false)
-    if (item.notes) printer.println(`  Obs: ${item.notes}`)
+  const hasGuests = payload.items.some((i) => i.guest)
+  for (const group of groupByGuest(payload.items)) {
+    if (hasGuests) {
+      printer.bold(true)
+      printer.println(`[ ${(group.guest ?? 'MESA').toUpperCase()} ]`)
+      printer.bold(false)
+    }
+    for (const item of group.items) {
+      printer.setTextDoubleHeight()
+      printer.bold(true)
+      printer.println(`${item.qty}x  ${item.name.toUpperCase()}`)
+      printer.setTextNormal()
+      printer.bold(false)
+      if (item.notes) printer.println(`  Obs: ${item.notes}`)
+    }
   }
 
   printer.drawLine()
@@ -117,7 +143,7 @@ export const KitchenPrintService = {
         table: true,
         items: {
           where: { sentToProduction: false, cancelled: false },
-          include: { product: true },
+          include: { product: true, guest: true },
         },
       },
     })
@@ -136,7 +162,7 @@ export const KitchenPrintService = {
         tableNumber,
         data: {
           itemsRead: readIds.length, kitchenItems: kitchen, marked, jobId, customerName: sale.customerName,
-          items: sale.items.map((i) => ({ id: i.id, qty: i.qty, name: i.product.name, kitchen: i.product.sendToKitchen })),
+          items: sale.items.map((i) => ({ id: i.id, qty: i.qty, name: i.product.name, kitchen: i.product.sendToKitchen, guest: i.guest?.name ?? null })),
         },
       })
       if (marked !== readIds.length) {
@@ -169,6 +195,7 @@ export const KitchenPrintService = {
           qty: i.qty,
           name: i.product.name,
           notes: i.notes,
+          guest: i.guest?.name ?? null,
         })),
       ],
     }

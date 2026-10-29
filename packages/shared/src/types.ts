@@ -101,6 +101,14 @@ export interface SaleItemDTO {
   cancelled: boolean
   sendToKitchen: boolean
   notes: string | null
+  guestId: string | null
+}
+
+// Pessoa dentro da mesa (divisão por pessoa)
+export interface SaleGuestDTO {
+  id: string
+  name: string
+  position: number
 }
 
 export interface SaleDTO {
@@ -123,6 +131,7 @@ export interface SaleDTO {
   customerAddress: string | null
   items: SaleItemDTO[]
   payments: PaymentDTO[]
+  guests: SaleGuestDTO[]
 }
 
 export interface PaymentDTO {
@@ -130,6 +139,7 @@ export interface PaymentDTO {
   method: PaymentMethod
   amount: number
   paidAt: string
+  guestId: string | null
 }
 
 // WebSocket event shapes

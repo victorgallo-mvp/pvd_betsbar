@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Settings, Printer, Store, CheckCircle, AlertCircle, Loader, QrCode } from 'lucide-react'
+import { ArrowLeft, Settings, Printer, Store, CheckCircle, AlertCircle, Loader, QrCode, Users } from 'lucide-react'
 import QRCode from 'react-qr-code'
 import { api } from '../lib/api'
+import { invalidateFeatures } from '../lib/features'
 
 interface AppConfig {
   establishment: { name: string; address: string; cnpj: string; phone: string }
   printer: { type: 'html' | 'network' | 'usb'; ip: string; port: number; width: 58 | 80; characterSet: string }
   kitchenPrinter: { enabled: boolean; ip: string; port: number; width: 58 | 80 }
+  features: { guests: boolean }
 }
 
 function Section({ title, icon: Icon, children }: { title: string; icon: React.ElementType; children: React.ReactNode }) {
@@ -105,6 +107,7 @@ export default function Configurar() {
     setSaveMsg(null)
     try {
       await api.patch('/config', config)
+      invalidateFeatures()
       setSaveMsg({ ok: true, text: 'Configurações salvas!' })
     } catch {
       setSaveMsg({ ok: false, text: 'Erro ao salvar.' })
@@ -151,6 +154,7 @@ export default function Configurar() {
   }
 
   const { establishment: est, printer: prt, kitchenPrinter: kp } = config
+  const feats = config.features ?? { guests: false }
 
   return (
     <div className="h-full flex flex-col bg-slate-900">
@@ -180,6 +184,26 @@ export default function Configurar() {
               <Input value={est.phone} onChange={v => update('establishment', 'phone', v)} placeholder="(00) 00000-0000" />
             </Field>
           </div>
+        </Section>
+
+        {/* Funções */}
+        <Section title="Funções da comanda" icon={Users}>
+          <Field label="Divisão por pessoa na mesa">
+            <button
+              onClick={() => setConfig({ ...config, features: { ...feats, guests: !feats.guests } })}
+              className={`w-full py-2.5 rounded-xl border-2 text-sm font-medium touch-btn transition-all ${
+                feats.guests
+                  ? 'border-emerald-500 bg-emerald-900/30 text-emerald-300'
+                  : 'border-slate-600 text-slate-500 hover:border-slate-500'
+              }`}
+            >
+              {feats.guests ? 'Habilitada ✓' : 'Desabilitada'}
+            </button>
+            <p className="text-xs text-slate-500">
+              Mostra na comanda os botões "Mesa / Victor / Adriana / + Pessoa" para lançar itens por pessoa,
+              o nome no ticket da cozinha e a conta separada por pessoa. Mesas que já têm pessoas continuam funcionando se desligar.
+            </p>
+          </Field>
         </Section>
 
         {/* Impressora Balcão */}

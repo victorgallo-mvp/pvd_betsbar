@@ -14,6 +14,7 @@ type SaleRow = Prisma.SaleGetPayload<{
     table: true
     items: { include: { product: true } }
     payments: true
+    guests: true
   }
 }>
 
@@ -60,13 +61,18 @@ function saleToDTO(s: SaleRow) {
       cancelled: i.cancelled,
       sendToKitchen: i.product.sendToKitchen,
       notes: i.notes,
+      guestId: i.guestId ?? null,
     })),
     payments: s.payments.map((p) => ({
       id: p.id,
       method: p.method,
       amount: Number(p.amount),
       paidAt: p.paidAt.toISOString(),
+      guestId: p.guestId ?? null,
     })),
+    guests: [...s.guests]
+      .sort((a, b) => a.position - b.position || a.createdAt.getTime() - b.createdAt.getTime())
+      .map((g) => ({ id: g.id, name: g.name, position: g.position })),
   }
 }
 
@@ -75,7 +81,16 @@ const saleInclude = {
   table: true,
   items: { include: { product: true } },
   payments: true,
+  guests: true,
 } as const
+
+// Garante que a pessoa existe e pertence à venda (null = mesa)
+async function assertGuest(saleId: string, guestId: string | null | undefined) {
+  if (!guestId) return null
+  const g = await prisma.saleGuest.findUnique({ where: { id: guestId } })
+  if (!g || g.saleId !== saleId) throw new Error('Pessoa não encontrada nesta mesa')
+  return g
+}
 
 // --- Service ---
 
@@ -129,6 +144,7 @@ export const SaleService = {
     operatorId: string
     customerName?: string
     customerAddress?: string
+    guests?: string[]
   }) {
     // Idempotência: se a mesa já tem venda ativa, retorna ela em vez de duplicar.
     // (Evita vendas órfãs quando o cliente tem estado desatualizado ou re-tenta após timeout.)
@@ -165,6 +181,9 @@ export const SaleService = {
           customerName: input.customerName ?? null,
           customerAddress: input.customerAddress ?? null,
           status: 'open',
+          ...(input.guests && input.guests.length > 0 && {
+            guests: { create: input.guests.map((name, position) => ({ name, position })) },
+          }),
         },
         include: saleInclude,
       })
@@ -185,7 +204,7 @@ export const SaleService = {
       type: 'sale.opened',
       saleId: sale.id,
       tableNumber: sale.table?.number ?? null,
-      data: { saleType: input.type, customerName: input.customerName ?? null, operatorId: input.operatorId },
+      data: { saleType: input.type, customerName: input.customerName ?? null, operatorId: input.operatorId, guests: input.guests ?? [] },
     })
     return saleToDTO(sale)
   },
@@ -219,11 +238,14 @@ export const SaleService = {
   },
 
   // Add item — merges if same product is not yet sent to production
-  async addItem(saleId: string, input: { productId: string; qty: number }) {
+  async addItem(saleId: string, input: { productId: string; qty: number; guestId?: string | null }) {
     const product = await prisma.product.findUniqueOrThrow({ where: { id: input.productId } })
+    const guest = await assertGuest(saleId, input.guestId)
+    const guestId = guest?.id ?? null
 
+    // Só junta com item pendente da MESMA pessoa (ou da mesa)
     const existing = await prisma.saleItem.findFirst({
-      where: { saleId, productId: input.productId, sentToProduction: false, cancelled: false },
+      where: { saleId, productId: input.productId, sentToProduction: false, cancelled: false, guestId },
     })
 
     let itemId: string
@@ -235,7 +257,7 @@ export const SaleService = {
       itemId = existing.id
     } else {
       const created = await prisma.saleItem.create({
-        data: { saleId, productId: input.productId, qty: input.qty, unitPrice: product.price },
+        data: { saleId, productId: input.productId, qty: input.qty, unitPrice: product.price, guestId },
       })
       itemId = created.id
     }
@@ -249,11 +271,72 @@ export const SaleService = {
         itemId, productId: input.productId, productName: product.name, qty: input.qty,
         merged: !!existing, qtyBefore: existing?.qty ?? 0, qtyAfter: (existing?.qty ?? 0) + input.qty,
         saleStatus: result.status, customerName: result.customerName,
+        guestId, guestName: guest?.name ?? null,
       },
     })
     if (result.status !== 'open' && result.status !== 'awaiting_payment') {
       Diag.log({ type: 'conflict.item_on_closed_sale', saleId, tableNumber: result.tableNumber, data: { itemId, status: result.status } })
     }
+    return result
+  },
+
+  // Move item para outra pessoa (ou de volta para a mesa, guestId = null).
+  // Permitido mesmo depois de lançado: não altera quantidade nem cozinha.
+  async moveItem(saleId: string, itemId: string, guestId: string | null) {
+    const item = await prisma.saleItem.findUniqueOrThrow({ where: { id: itemId }, include: { product: true, guest: true } })
+    if (item.saleId !== saleId) throw new Error('Item não pertence a esta venda')
+    if (item.cancelled) throw new Error('Item cancelado')
+    const guest = await assertGuest(saleId, guestId)
+
+    await prisma.saleItem.update({ where: { id: itemId }, data: { guestId: guest?.id ?? null } })
+
+    const result = await SaleService.getSale(saleId)
+    Diag.log({
+      type: 'sale.item_moved',
+      saleId,
+      tableNumber: result.tableNumber,
+      data: {
+        itemId, productId: item.productId, productName: item.product.name, qty: item.qty, sent: item.sentToProduction,
+        fromGuestId: item.guestId, fromGuestName: item.guest?.name ?? null,
+        toGuestId: guest?.id ?? null, toGuestName: guest?.name ?? null,
+      },
+    })
+    return result
+  },
+
+  // Pessoas da mesa
+  async addGuest(saleId: string, name: string) {
+    const sale = await prisma.sale.findUniqueOrThrow({ where: { id: saleId }, include: { guests: true, table: true } })
+    if (sale.status !== 'open' && sale.status !== 'awaiting_payment') throw new Error('Venda já encerrada')
+    if (sale.guests.some((g) => g.name.toLowerCase() === name.toLowerCase())) {
+      throw new Error(`Já existe "${name}" nesta mesa`)
+    }
+    const position = sale.guests.reduce((m, g) => Math.max(m, g.position), -1) + 1
+    const guest = await prisma.saleGuest.create({ data: { saleId, name, position } })
+    Diag.log({ type: 'sale.guest_added', saleId, tableNumber: sale.table?.number ?? null, data: { guestId: guest.id, name, position, guestsAfter: sale.guests.length + 1 } })
+    return SaleService.getSale(saleId)
+  },
+
+  async renameGuest(saleId: string, guestId: string, name: string) {
+    const guest = await assertGuest(saleId, guestId)
+    if (!guest) throw new Error('Pessoa não encontrada')
+    await prisma.saleGuest.update({ where: { id: guestId }, data: { name } })
+    const result = await SaleService.getSale(saleId)
+    Diag.log({ type: 'sale.guest_renamed', saleId, tableNumber: result.tableNumber, data: { guestId, from: guest.name, to: name } })
+    return result
+  },
+
+  // Remove a pessoa; itens e pagamentos dela voltam para a mesa (SetNull no banco)
+  async removeGuest(saleId: string, guestId: string) {
+    const guest = await assertGuest(saleId, guestId)
+    if (!guest) throw new Error('Pessoa não encontrada')
+    const [items, payments] = await Promise.all([
+      prisma.saleItem.count({ where: { guestId, cancelled: false } }),
+      prisma.payment.count({ where: { guestId } }),
+    ])
+    await prisma.saleGuest.delete({ where: { id: guestId } })
+    const result = await SaleService.getSale(saleId)
+    Diag.log({ type: 'sale.guest_removed', saleId, tableNumber: result.tableNumber, data: { guestId, name: guest.name, itemsReturnedToTable: items, paymentsReturnedToTable: payments } })
     return result
   },
 
@@ -295,19 +378,23 @@ export const SaleService = {
   // pra outros lançarem pedido, e só fecha de fato quando os pagamentos
   // somados cobrirem o total (ver registerPayment). Pode ser chamado quantas
   // vezes forem necessárias ao longo do atendimento.
-  async requestBill(saleId: string, input: { peopleCount: number }) {
+  async requestBill(saleId: string, input: { peopleCount: number; guestId?: string | null }) {
     const sale = await prisma.sale.findUniqueOrThrow({ where: { id: saleId } })
+    const guest = await assertGuest(saleId, input.guestId)
     const perPersonAmount = Number(sale.total) / input.peopleCount
 
-    await prisma.sale.update({
-      where: { id: saleId },
-      data: { peopleCount: input.peopleCount, perPersonAmount },
-    })
+    // Conta de uma pessoa não mexe na divisão "por N" da mesa
+    if (!guest) {
+      await prisma.sale.update({
+        where: { id: saleId },
+        data: { peopleCount: input.peopleCount, perPersonAmount },
+      })
+    }
 
     // Auto-print bill receipt (fire-and-forget — print failure must not block the flow)
-    PrintService.createBillJob(saleId)
+    PrintService.createBillJob(saleId, guest?.id ?? null)
       .then((job) => {
-        Diag.log({ type: 'sale.bill_requested', saleId, data: { jobId: job.id, peopleCount: input.peopleCount, total: Number(sale.total), status: sale.status } })
+        Diag.log({ type: 'sale.bill_requested', saleId, data: { jobId: job.id, peopleCount: input.peopleCount, total: Number(sale.total), status: sale.status, guestId: guest?.id ?? null, guestName: guest?.name ?? null } })
       })
       .catch((err) => {
         console.error('[Print] createBillJob falhou:', err)
@@ -318,7 +405,8 @@ export const SaleService = {
   },
 
   // Register a payment — closes sale + frees table when total is covered
-  async registerPayment(saleId: string, input: { method: string; amount: number }) {
+  async registerPayment(saleId: string, input: { method: string; amount: number; guestId?: string | null }) {
+    const guest = await assertGuest(saleId, input.guestId)
     let diag: Record<string, unknown> = {}
     const freedTable = await prisma.$transaction(async (tx) => {
       // Total lido DENTRO da transação — evita fechar a venda com total desatualizado
@@ -328,7 +416,7 @@ export const SaleService = {
       })
 
       await tx.payment.create({
-        data: { saleId, method: input.method, amount: input.amount },
+        data: { saleId, method: input.method, amount: input.amount, guestId: guest?.id ?? null },
       })
 
       const totalPaid =
@@ -337,7 +425,7 @@ export const SaleService = {
       diag = {
         tableNumber: sale.table?.number ?? null, statusBefore: sale.status, method: input.method,
         amount: input.amount, paidBefore: totalPaid - input.amount, total: Number(sale.total),
-        closes: totalPaid >= Number(sale.total),
+        closes: totalPaid >= Number(sale.total), guestId: guest?.id ?? null, guestName: guest?.name ?? null,
       }
 
       if (totalPaid < Number(sale.total)) return null
@@ -434,6 +522,7 @@ export const SaleService = {
       where: { id: itemId },
       include: {
         product: true,
+        guest: true,
         sale: { include: { operator: true, table: true } },
       },
     })
@@ -465,7 +554,7 @@ export const SaleService = {
             saleType: s.type,
             operatorName: s.operator.name,
             printedAt: new Date().toISOString(),
-            items: [{ qty: item.qty, name: `[CANCELAR] ${item.product.name}`, notes: null }],
+            items: [{ qty: item.qty, name: `[CANCELAR] ${item.product.name}`, notes: null, guest: item.guest?.name ?? null }],
           }),
         },
       })

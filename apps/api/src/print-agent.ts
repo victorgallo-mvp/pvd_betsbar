@@ -112,12 +112,15 @@ interface PrintPayload {
   tableNumber: number | null
   customerName: string | null
   customerAddress: string | null
-  items: { name: string; qty: number; unitPrice: number; subtotal: number }[]
+  items: { name: string; qty: number; unitPrice: number; subtotal: number; guest?: string | null }[]
   subtotal: number
   discount: number
   total: number
-  payments: { method: string; amount: number }[]
+  payments: { method: string; amount: number; guest?: string | null }[]
   troco: number
+  // Divisão por pessoa: conta de uma pessoa só / resumo por pessoa (mesa toda)
+  guestName?: string | null
+  guestSummary?: { name: string; total: number; paid: number }[]
 }
 
 interface KitchenPayload {
@@ -125,7 +128,7 @@ interface KitchenPayload {
   saleType: string
   operatorName: string
   printedAt: string
-  items: { qty: number; name: string; notes: string | null }[]
+  items: { qty: number; name: string; notes: string | null; guest?: string | null }[]
 }
 
 const METHOD_LABELS: Record<string, string> = {
@@ -154,12 +157,39 @@ async function printReceipt(payload: PrintPayload): Promise<void> {
     printer.println(`Cliente: ${payload.customerName}`)
     if (payload.customerAddress) printer.println(payload.customerAddress)
   }
+  if (payload.guestName) {
+    printer.bold(true)
+    printer.println(`CONTA DE: ${payload.guestName.toUpperCase()}`)
+    printer.bold(false)
+  }
   printer.drawLine()
 
-  for (const item of payload.items) {
+  // Mesa com pessoas: itens agrupados por pessoa (itens da mesa primeiro)
+  const hasGuests = !payload.guestName && payload.items.some((i) => i.guest)
+  let lastGroup: string | null | undefined = undefined
+  const ordered = hasGuests
+    ? [...payload.items].sort((a, b) => (a.guest ?? '') === (b.guest ?? '') ? 0 : !a.guest ? -1 : !b.guest ? 1 : 0)
+    : payload.items
+  for (const item of ordered) {
+    const group = item.guest ?? null
+    if (hasGuests && group !== lastGroup) {
+      printer.bold(true)
+      printer.println(`[ ${(group ?? 'Mesa').toUpperCase()} ]`)
+      printer.bold(false)
+      lastGroup = group
+    }
     printer.leftRight(`${item.qty}x ${item.name}`, fmt(item.subtotal))
   }
   printer.drawLine()
+
+  if (payload.guestSummary && payload.guestSummary.length > 0) {
+    printer.println('Por pessoa:')
+    for (const g of payload.guestSummary) {
+      const paid = g.paid > 0 ? `  pago ${fmt(g.paid)}` : ''
+      printer.leftRight(`  ${g.name}${paid}`, fmt(g.total))
+    }
+    printer.drawLine()
+  }
 
   if (payload.discount > 0) printer.leftRight('Desconto', `-${fmt(payload.discount)}`)
   printer.bold(true)
@@ -214,13 +244,30 @@ async function printKitchen(payload: KitchenPayload): Promise<void> {
   printer.println(`Garcom: ${payload.operatorName}   ${time}`)
   printer.drawLine()
 
-  for (const item of payload.items) {
-    printer.setTextDoubleHeight()
-    printer.bold(true)
-    printer.println(`${item.qty}x  ${item.name.toUpperCase()}`)
-    printer.setTextNormal()
-    printer.bold(false)
-    if (item.notes) printer.println(`  Obs: ${item.notes}`)
+  // Divisão por pessoa: agrupa por pessoa (itens da mesa primeiro)
+  const hasGuests = payload.items.some((i) => i.guest)
+  const groups: { guest: string | null; items: typeof payload.items }[] = []
+  for (const it of payload.items) {
+    const key = it.guest ?? null
+    let g = groups.find((x) => x.guest === key)
+    if (!g) { g = { guest: key, items: [] }; groups.push(g) }
+    g.items.push(it)
+  }
+  groups.sort((a, b) => (a.guest === null ? -1 : b.guest === null ? 1 : 0))
+  for (const group of groups) {
+    if (hasGuests) {
+      printer.bold(true)
+      printer.println(`[ ${(group.guest ?? 'MESA').toUpperCase()} ]`)
+      printer.bold(false)
+    }
+    for (const item of group.items) {
+      printer.setTextDoubleHeight()
+      printer.bold(true)
+      printer.println(`${item.qty}x  ${item.name.toUpperCase()}`)
+      printer.setTextNormal()
+      printer.bold(false)
+      if (item.notes) printer.println(`  Obs: ${item.notes}`)
+    }
   }
 
   printer.drawLine()

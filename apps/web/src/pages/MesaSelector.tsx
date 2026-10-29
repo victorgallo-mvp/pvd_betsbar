@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, ShoppingBag, Bike, LogOut, User, Plus } from 'lucide-react'
+import { ArrowLeft, ShoppingBag, Bike, LogOut, User, Plus, UserPlus, X } from 'lucide-react'
 import { useTables } from '../stores/useTables'
 import { useSale } from '../stores/useSale'
 import { api } from '../lib/api'
@@ -10,18 +10,23 @@ import { useDevice } from '../hooks/useDevice'
 import { MesaCard } from '../components/MesaCard'
 import { NumericKeypad } from '../components/NumericKeypad'
 import { track } from '../lib/diag'
+import { useFeatures } from '../lib/features'
 
 export default function MesaSelector() {
   const navigate = useNavigate()
   const { tables, fetchTables, isLoading, fetchError } = useTables()
   const { saleOperator, openSale, clearSaleOperator } = useSale()
   const { isPOS } = useDevice()
+  const features = useFeatures()
 
   const [inputNum, setInputNum] = useState('')
   const [busyMsg, setBusyMsg] = useState('')
   const [pendingTable, setPendingTable] = useState<TableDTO | null>(null)
   const [nameInput, setNameInput] = useState('')
   const nameRef = useRef<HTMLInputElement>(null)
+  // Divisão por pessoa: nomes informados já na abertura (opcional)
+  const [guestInput, setGuestInput] = useState('')
+  const [guestNames, setGuestNames] = useState<string[]>([])
 
   const [addingTable, setAddingTable] = useState(false)
   const [addTableNum, setAddTableNum] = useState('')
@@ -63,6 +68,8 @@ export default function MesaSelector() {
 
     // Free table → show name modal
     setNameInput('')
+    setGuestInput('')
+    setGuestNames([])
     setPendingTable(table)
     setTimeout(() => nameRef.current?.focus(), 50)
   }
@@ -72,13 +79,17 @@ export default function MesaSelector() {
     setPendingTable(null)
     setBusyMsg('Abrindo mesa...')
     const typedName = nameInput.trim() || undefined
-    track('open', { tableNumber: pendingTable.number, customerName: typedName ?? null })
+    // Nome ainda no campo e não confirmado com "+" também entra
+    const pendingGuest = guestInput.trim()
+    const guests = [...guestNames, ...(pendingGuest && !guestNames.includes(pendingGuest) ? [pendingGuest] : [])]
+    track('open', { tableNumber: pendingTable.number, customerName: typedName ?? null, guests })
     try {
       const sale = await openSale({
         type: 'table',
         tableId: pendingTable.id,
         operatorId: saleOperator.id,
         customerName: typedName,
+        ...(guests.length > 0 && { guests }),
       })
       const reused = sale.items.length > 0 || (sale.customerName ?? null) !== (typedName ?? null)
       track(reused ? 'conflict.open_returned_existing' : 'open_ok', {
@@ -91,6 +102,13 @@ export default function MesaSelector() {
       setBusyMsg('Erro ao abrir mesa')
       setTimeout(() => setBusyMsg(''), 2000)
     }
+  }
+
+  const addGuestName = () => {
+    const name = guestInput.trim()
+    if (!name) return
+    if (!guestNames.includes(name)) setGuestNames((g) => [...g, name])
+    setGuestInput('')
   }
 
   const handleOk = () => {
@@ -237,6 +255,40 @@ export default function MesaSelector() {
             className="flex-1 bg-transparent text-slate-100 placeholder-slate-500 text-sm outline-none"
           />
         </div>
+
+        {features.guests && (
+          <div className="flex flex-col gap-2">
+            <div className="text-slate-400 text-xs">Pessoas da mesa (opcional, para dividir a conta)</div>
+            {guestNames.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {guestNames.map((g) => (
+                  <span key={g} className="flex items-center gap-1 bg-sky-900/50 border border-sky-700 text-sky-200 text-xs px-2.5 py-1 rounded-full">
+                    {g}
+                    <button onClick={() => setGuestNames((l) => l.filter((x) => x !== g))} className="text-sky-400 hover:text-white touch-btn">
+                      <X size={12} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center gap-2 bg-slate-700 rounded-xl px-3 py-2 border border-slate-600 focus-within:border-sky-500">
+              <UserPlus size={16} className="text-slate-400 shrink-0" />
+              <input
+                type="text"
+                value={guestInput}
+                maxLength={40}
+                onChange={(e) => setGuestInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') addGuestName() }}
+                placeholder="Nome da pessoa + Enter"
+                className="flex-1 bg-transparent text-slate-100 placeholder-slate-500 text-sm outline-none"
+              />
+              <button onClick={addGuestName} disabled={!guestInput.trim()}
+                className="w-8 h-8 rounded-lg bg-sky-700 hover:bg-sky-600 text-white touch-btn flex items-center justify-center disabled:opacity-40">
+                <Plus size={16} />
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="flex gap-2">
           <button

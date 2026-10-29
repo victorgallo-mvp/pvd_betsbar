@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Check, Users, DoorOpen } from 'lucide-react'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { ArrowLeft, Check, Users, DoorOpen, User } from 'lucide-react'
+import { computeShares } from '@pdv/shared'
 import { useSale } from '../stores/useSale'
 import { useDevice } from '../hooks/useDevice'
 import { CurrencyKeypad, formatCents } from '../components/CurrencyKeypad'
@@ -24,10 +25,13 @@ function fmtBRL(n: number) {
 
 export default function Pagamento() {
   const { saleId } = useParams<{ saleId: string }>()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { saleOperator, currentSale, loadSale, registerPayment, cancelSale, clearSale, isLoading } = useSale()
   const { isPOS } = useDevice()
 
+  // Divisão por pessoa: pessoa cuja parte está sendo cobrada (null = mesa)
+  const [payGuest, setPayGuest] = useState<string | null>(searchParams.get('guest'))
   const [cents, setCents] = useState(0)
   const [method, setMethod] = useState<Method>('cash')
   const [done, setDone] = useState(false)
@@ -49,16 +53,21 @@ export default function Pagamento() {
     if (currentSale) {
       const paid = currentSale.payments?.reduce((s, p) => s + p.amount, 0) ?? 0
       const residual = Math.max(0, currentSale.total - paid)
-      setCents(Math.round((residual / splitPeople) * 100))
+      const g = payGuest ? computeShares(currentSale).guests.find(x => x.guestId === payGuest) : null
+      if (payGuest && !g) setPayGuest(null)
+      setCents(g ? g.dueCents : Math.round((residual / splitPeople) * 100))
     }
   }, [currentSale?.id])
 
   const sale = currentSale
+  const shares = sale ? computeShares(sale) : null
+  const hasGuests = (sale?.guests.length ?? 0) > 0
+  const selectedShare = payGuest && shares ? shares.guests.find(g => g.guestId === payGuest) ?? null : null
   const totalCents = Math.round((sale?.total ?? 0) * 100)
   const paidCents = Math.round((sale?.payments?.reduce((s, p) => s + p.amount, 0) ?? 0) * 100)
   const residualCents = Math.max(0, totalCents - paidCents)
   const splitPartCents = Math.round(residualCents / splitPeople)
-  const referenceCents = splitPeople > 1 ? splitPartCents : residualCents
+  const referenceCents = selectedShare ? selectedShare.dueCents : splitPeople > 1 ? splitPartCents : residualCents
   const trocoCents = method === 'cash' ? Math.max(0, cents - referenceCents) : 0
   // amount actually applied to the sale: if giving change back, net = cents - troco; else full cents
   const amountToApply = trocoCents > 0 && !darTroco ? cents : cents - trocoCents
@@ -77,16 +86,28 @@ export default function Pagamento() {
     navigate('/mesa')
   }
 
+  // Seleciona a parte de uma pessoa (ou a mesa) e preenche o valor que falta
+  const handlePickGuest = (guestId: string | null) => {
+    setPayGuest(guestId)
+    setDarTroco(true)
+    if (guestId && shares) {
+      const g = shares.guests.find(x => x.guestId === guestId)
+      setCents(g ? g.dueCents : 0)
+    } else {
+      setCents(Math.round(residualCents / splitPeople))
+    }
+  }
+
   const handleOk = async () => {
     if (!saleId || cents <= 0) return
     const shown = useSale.getState().currentSale
     track('pay', {
-      saleId, method, amount: amountToApply / 100, cents, splitPeople,
+      saleId, method, amount: amountToApply / 100, cents, splitPeople, guestId: payGuest,
       shownSaleId: shown?.id ?? null, shownTable: shown?.tableNumber ?? null, shownStatus: shown?.status ?? null, mismatch: !!shown && shown.id !== saleId,
     })
     let result: Awaited<ReturnType<typeof registerPayment>>
     try {
-      result = await registerPayment(saleId, method, amountToApply / 100)
+      result = await registerPayment(saleId, method, amountToApply / 100, payGuest)
     } catch (err) {
       track('pay_failed', { saleId, error: (err as Error).message })
       throw err // comportamento original: erro não tratado na tela
@@ -99,6 +120,17 @@ export default function Pagamento() {
       }
       const nextPath = result.type === 'table' ? '/mesa' : '/'
       setTimeout(() => { clearSale(); navigate(nextPath) }, 1500)
+    } else if (payGuest) {
+      // parcial de uma pessoa — se a parte dela fechou, volta para a mesa
+      await loadSale(saleId)
+      const after = computeShares(result).guests.find(g => g.guestId === payGuest)
+      if (!after || after.dueCents <= 0) {
+        setPayGuest(null)
+        setCents(Math.max(0, totalCents - paidCents - amountToApply))
+      } else {
+        setCents(after.dueCents)
+      }
+      setDarTroco(true)
     } else {
       // partial — reload, decrement split, recalc
       await loadSale(saleId)
@@ -223,6 +255,51 @@ export default function Pagamento() {
     </div>
   )
 
+  // Partes por pessoa (divisão por pessoa). Toque preenche o valor que falta da pessoa.
+  const guestPanel = hasGuests && shares ? (
+    <div className="shrink-0 bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-slate-700/60">
+        <User size={14} className="text-sky-400" />
+        <span className="text-xs text-slate-400 flex-1">Cobrar de</span>
+        {payGuest && <span className="text-[10px] text-sky-300 uppercase">parte de {selectedShare?.name}</span>}
+      </div>
+      <div className="divide-y divide-slate-700/60">
+        <button onClick={() => handlePickGuest(null)}
+          className={`w-full flex items-center gap-2 px-3 py-2 text-left touch-btn ${payGuest === null ? 'bg-emerald-900/40' : 'hover:bg-slate-700/50'}`}>
+          <Users size={14} className={payGuest === null ? 'text-emerald-300' : 'text-slate-500'} />
+          <span className={`flex-1 text-sm ${payGuest === null ? 'text-emerald-200 font-semibold' : 'text-slate-300'}`}>Mesa toda</span>
+          <span className="text-right">
+            <span className="block text-xs text-amber-400 font-mono">falta R$ {formatCents(residualCents)}</span>
+            {shares.sharedCents > 0 && <span className="block text-[10px] text-slate-500">itens da mesa R$ {formatCents(shares.sharedCents)}</span>}
+          </span>
+        </button>
+        {shares.guests.map(g => {
+          const sel = payGuest === g.guestId
+          const quit = g.dueCents === 0
+          return (
+            <button key={g.guestId} onClick={() => handlePickGuest(g.guestId)}
+              className={`w-full flex items-center gap-2 px-3 py-2 text-left touch-btn ${sel ? 'bg-sky-900/40' : 'hover:bg-slate-700/50'}`}>
+              <span className={`w-3.5 h-3.5 rounded-full shrink-0 flex items-center justify-center ${quit ? 'bg-emerald-600' : sel ? 'bg-sky-500' : 'bg-slate-600'}`}>
+                {quit && <Check size={10} className="text-white" />}
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className={`block text-sm truncate ${sel ? 'text-sky-200 font-semibold' : quit ? 'text-slate-500 line-through' : 'text-slate-200'}`}>{g.name}</span>
+                <span className="block text-[10px] text-slate-500">
+                  itens R$ {formatCents(g.itemsCents)}
+                  {g.paidCents > 0 && <> · pago R$ {formatCents(g.paidCents)}</>}
+                  {g.overpaidCents > 0 && <span className="text-amber-400"> (a mais R$ {formatCents(g.overpaidCents)})</span>}
+                </span>
+              </span>
+              <span className={`text-sm font-mono font-bold ${quit ? 'text-emerald-400' : 'text-slate-100'}`}>
+                {quit ? 'pago' : `R$ ${formatCents(g.dueCents)}`}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  ) : null
+
   const splitControl = (
     <div className="flex items-center gap-2 shrink-0 bg-slate-800 rounded-xl px-3 py-2 border border-slate-700">
       <Users size={16} className="text-slate-400 shrink-0" />
@@ -290,8 +367,9 @@ export default function Pagamento() {
         {topBar}
         {emptyTableBanner}
         <div className="flex-1 overflow-y-auto flex flex-col gap-3 p-3">
+          {guestPanel}
           {valorTroco}
-          {splitControl}
+          {!payGuest && splitControl}
           {cedulas}
           <CurrencyKeypad cents={cents} onChange={setCents} disabled={isLoading} className="h-64" />
           {methodButtons('grid-cols-2')}
@@ -329,7 +407,10 @@ export default function Pagamento() {
           <div className="flex-1 overflow-y-auto space-y-1">
             {sale?.items.filter(i => !i.cancelled).map(item => (
               <div key={item.id} className="flex justify-between text-sm text-slate-300">
-                <span className="truncate pr-2">{item.qty}× {item.productName}</span>
+                <span className="truncate pr-2">
+                  {item.qty}× {item.productName}
+                  {hasGuests && <span className="text-[10px] text-sky-300 ml-1">{sale.guests.find(g => g.id === item.guestId)?.name ?? 'mesa'}</span>}
+                </span>
                 <span className="shrink-0 text-slate-400">{fmtBRL(item.subtotal)}</span>
               </div>
             ))}
@@ -351,7 +432,10 @@ export default function Pagamento() {
                 <div className="text-xs text-slate-500 uppercase tracking-wide">Pagamentos</div>
                 {sale!.payments.map((p) => (
                   <div key={p.id} className="flex justify-between text-xs">
-                    <span className="text-slate-400 capitalize">{p.method}</span>
+                    <span className="text-slate-400 capitalize">
+                      {p.method}
+                      {p.guestId && <span className="text-sky-300 ml-1 normal-case">· {sale!.guests.find(g => g.id === p.guestId)?.name}</span>}
+                    </span>
                     <span className="text-emerald-400">{fmtBRL(p.amount)}</span>
                   </div>
                 ))}
@@ -365,8 +449,9 @@ export default function Pagamento() {
 
         {/* CENTER — keypad + methods */}
         <div className="flex-1 flex flex-col p-3 gap-2 min-h-0">
+          {guestPanel}
           {valorTroco}
-          {splitControl}
+          {!payGuest && splitControl}
           {cedulas}
           <CurrencyKeypad cents={cents} onChange={setCents} disabled={isLoading} className="flex-1 min-h-0" />
           {methodButtons('grid-cols-2')}

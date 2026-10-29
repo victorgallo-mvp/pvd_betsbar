@@ -21,19 +21,26 @@ interface SaleState {
     operatorId: string
     customerName?: string
     customerAddress?: string
+    guests?: string[]
   }) => Promise<SaleDTO>
 
   updateSale: (saleId: string, input: { customerName?: string; customerAddress?: string }) => Promise<void>
-  addItem: (saleId: string, productId: string, qty?: number) => Promise<void>
+  addItem: (saleId: string, productId: string, qty?: number, guestId?: string | null) => Promise<void>
   removeItem: (saleId: string, itemId: string) => Promise<void>
   cancelItem: (saleId: string, itemId: string) => Promise<void>
+  moveItem: (saleId: string, itemId: string, guestId: string | null) => Promise<void>
+  // Pessoas da mesa (divisão por pessoa). Lançam erro para a tela mostrar a mensagem.
+  addGuest: (saleId: string, name: string) => Promise<void>
+  renameGuest: (saleId: string, guestId: string, name: string) => Promise<void>
+  removeGuest: (saleId: string, guestId: string) => Promise<void>
   concludeItems: (saleId: string) => Promise<{ printed: number; queued: number }>
-  requestBill: (saleId: string, peopleCount: number) => Promise<void>
+  requestBill: (saleId: string, peopleCount: number, guestId?: string | null) => Promise<void>
   cancelSale: (saleId: string) => Promise<void>
   registerPayment: (
     saleId: string,
     method: string,
     amount: number,
+    guestId?: string | null,
   ) => Promise<SaleDTO>
 
   clearSale: () => void
@@ -80,11 +87,12 @@ export const useSale = create<SaleState>((set) => ({
     }
   },
 
-  addItem: async (saleId, productId, qty = 1) => {
+  addItem: async (saleId, productId, qty = 1, guestId = null) => {
     try {
       const sale = await api.post<SaleDTO>(`/sales/${saleId}/items`, {
         productId,
         qty,
+        guestId,
       })
       set({ currentSale: sale })
     } catch (err) {
@@ -110,6 +118,30 @@ export const useSale = create<SaleState>((set) => ({
     }
   },
 
+  moveItem: async (saleId, itemId, guestId) => {
+    try {
+      const sale = await api.patch<SaleDTO>(`/sales/${saleId}/items/${itemId}`, { guestId })
+      set({ currentSale: sale })
+    } catch (err) {
+      set({ error: (err as Error).message })
+    }
+  },
+
+  addGuest: async (saleId, name) => {
+    const sale = await api.post<SaleDTO>(`/sales/${saleId}/guests`, { name })
+    set({ currentSale: sale })
+  },
+
+  renameGuest: async (saleId, guestId, name) => {
+    const sale = await api.patch<SaleDTO>(`/sales/${saleId}/guests/${guestId}`, { name })
+    set({ currentSale: sale })
+  },
+
+  removeGuest: async (saleId, guestId) => {
+    const sale = await api.delete<SaleDTO>(`/sales/${saleId}/guests/${guestId}`)
+    set({ currentSale: sale })
+  },
+
   concludeItems: async (saleId) => {
     try {
       const result = await api.post<SaleDTO & { _kitchen: { printed: number; queued: number } }>(
@@ -125,9 +157,9 @@ export const useSale = create<SaleState>((set) => ({
     }
   },
 
-  requestBill: async (saleId, peopleCount) => {
+  requestBill: async (saleId, peopleCount, guestId = null) => {
     try {
-      const sale = await api.post<SaleDTO>(`/sales/${saleId}/request-bill`, { peopleCount })
+      const sale = await api.post<SaleDTO>(`/sales/${saleId}/request-bill`, { peopleCount, guestId })
       set({ currentSale: sale })
     } catch (err) {
       set({ error: (err as Error).message })
@@ -143,10 +175,10 @@ export const useSale = create<SaleState>((set) => ({
     }
   },
 
-  registerPayment: async (saleId, method, amount) => {
+  registerPayment: async (saleId, method, amount, guestId = null) => {
     set({ isLoading: true })
     try {
-      const sale = await api.post<SaleDTO>(`/sales/${saleId}/payments`, { method, amount })
+      const sale = await api.post<SaleDTO>(`/sales/${saleId}/payments`, { method, amount, guestId })
       set({ currentSale: sale, isLoading: false })
       return sale
     } catch (err) {

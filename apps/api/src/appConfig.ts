@@ -24,6 +24,10 @@ export interface AppConfig {
     port: number
     width: 58 | 80
   }
+  features: {
+    // Divisão por pessoa dentro da mesa (botões Mesa / Victor / Adriana... na comanda)
+    guests: boolean
+  }
 }
 
 const DEFAULTS: AppConfig = {
@@ -35,6 +39,7 @@ const DEFAULTS: AppConfig = {
     port: 9100,
     width: 80,
   },
+  features: { guests: true },
 }
 
 export function readConfig(): AppConfig {
@@ -45,6 +50,7 @@ export function readConfig(): AppConfig {
       establishment: { ...DEFAULTS.establishment, ...stored.establishment },
       printer: { ...DEFAULTS.printer, ...stored.printer },
       kitchenPrinter: { ...DEFAULTS.kitchenPrinter, ...stored.kitchenPrinter },
+      features: { ...DEFAULTS.features, ...stored.features },
     }
   } catch {
     return structuredClone(DEFAULTS)
@@ -57,6 +63,7 @@ export function writeConfig(patch: Partial<AppConfig>): AppConfig {
     establishment: { ...current.establishment, ...patch.establishment },
     printer: { ...current.printer, ...patch.printer },
     kitchenPrinter: { ...current.kitchenPrinter, ...patch.kitchenPrinter },
+    features: { ...current.features, ...patch.features },
   }
   writeFileSync(CONFIG_PATH, JSON.stringify(next, null, 2), 'utf-8')
   return next

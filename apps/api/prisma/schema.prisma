@@ -70,6 +70,22 @@ model Sale {
   items           SaleItem[]
   payments        Payment[]
   printJobs       PrintJob[]
+  guests          SaleGuest[]
+}
+
+// Pessoa dentro de uma mesa (divisão por pessoa). Item/pagamento sem guestId
+// pertence à mesa (compartilhado), exatamente como antes da função existir.
+model SaleGuest {
+  id        String     @id @default(cuid())
+  saleId    String
+  sale      Sale       @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  name      String
+  position  Int        @default(0)
+  createdAt DateTime   @default(now())
+  items     SaleItem[]
+  payments  Payment[]
+
+  @@index([saleId])
 }
 
 model SaleItem {
@@ -84,6 +100,8 @@ model SaleItem {
   cancelled        Boolean  @default(false)
   notes            String?
   createdAt        DateTime @default(now())
+  guestId          String?
+  guest            SaleGuest? @relation(fields: [guestId], references: [id], onDelete: SetNull)
 }
 
 model Payment {
@@ -93,6 +111,8 @@ model Payment {
   method String   // 'cash' | 'debit' | 'credit' | 'pix' | 'voucher' | 'conta_receita'
   amount Decimal
   paidAt DateTime @default(now())
+  guestId String?
+  guest   SaleGuest? @relation(fields: [guestId], references: [id], onDelete: SetNull)
 }
 
 model CashSession {

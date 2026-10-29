@@ -5,8 +5,9 @@ import { api } from '../lib/api'
 
 // ── Types ─────────────────────────────────────────────────────
 
-interface HistPayment { id: string; method: string; amount: number; paidAt: string }
-interface HistItem    { id: string; productName: string; qty: number; subtotal: number; cancelled: boolean }
+interface HistPayment { id: string; method: string; amount: number; paidAt: string; guestId: string | null }
+interface HistItem    { id: string; productName: string; qty: number; subtotal: number; cancelled: boolean; guestId: string | null }
+interface HistGuest   { id: string; name: string; position: number }
 interface HistSale {
   id: string
   tableNumber: number | null
@@ -17,6 +18,7 @@ interface HistSale {
   total: number
   items: HistItem[]
   payments: HistPayment[]
+  guests: HistGuest[]
 }
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -197,6 +199,15 @@ export default function Historico() {
               {/* Expanded: sale details */}
               {isOpen && tableSales.map((sale, si) => {
                 const activeItems = sale.items.filter(i => !i.cancelled)
+                const guests = sale.guests ?? []
+                const guestName = (id: string | null) => guests.find(g => g.id === id)?.name ?? null
+                // Com pessoas: itens agrupados (mesa primeiro, depois cada pessoa)
+                const itemGroups: { label: string | null; items: HistItem[] }[] = guests.length === 0
+                  ? [{ label: null, items: activeItems }]
+                  : [
+                      { label: 'Mesa', items: activeItems.filter(i => !i.guestId || !guestName(i.guestId)) },
+                      ...guests.map(g => ({ label: g.name, items: activeItems.filter(i => i.guestId === g.id) })),
+                    ].filter(gr => gr.items.length > 0)
                 return (
                   <div key={sale.id}
                     className={`px-4 py-3 ${si === 0 ? 'border-t border-slate-700' : 'border-t-2 border-slate-600'}`}>
@@ -212,10 +223,20 @@ export default function Historico() {
 
                     {/* Items */}
                     <div className="space-y-0.5 mb-3">
-                      {activeItems.map(item => (
-                        <div key={item.id} className="flex justify-between text-xs text-slate-400">
-                          <span>{item.qty}× {item.productName}</span>
-                          <span>{fmtBRL(item.subtotal)}</span>
+                      {itemGroups.map(gr => (
+                        <div key={gr.label ?? 'all'}>
+                          {gr.label && (
+                            <div className="flex justify-between text-[11px] font-semibold text-sky-300 pt-1">
+                              <span>{gr.label}</span>
+                              <span className="text-slate-500 font-normal">{fmtBRL(gr.items.reduce((s, i) => s + i.subtotal, 0))}</span>
+                            </div>
+                          )}
+                          {gr.items.map(item => (
+                            <div key={item.id} className="flex justify-between text-xs text-slate-400">
+                              <span>{item.qty}× {item.productName}</span>
+                              <span>{fmtBRL(item.subtotal)}</span>
+                            </div>
+                          ))}
                         </div>
                       ))}
                     </div>
@@ -226,6 +247,9 @@ export default function Historico() {
                         <div key={payment.id} className="flex items-center justify-between">
                           <span className="text-xs text-slate-300 font-medium">
                             {METHOD_LABELS[payment.method] ?? payment.method}
+                            {payment.guestId && guestName(payment.guestId) && (
+                              <span className="text-sky-300 font-normal ml-1.5">· {guestName(payment.guestId)}</span>
+                            )}
                           </span>
                           <div className="flex items-center gap-2">
                             <span className="text-xs text-slate-400">{fmtBRL(payment.amount)}</span>

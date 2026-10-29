@@ -2,6 +2,7 @@ import { prisma } from '../lib/prisma.js'
 // @ts-ignore
 import ThermalPrinter from 'node-thermal-printer'
 import { readConfig } from '../appConfig.js'
+import { computeShares } from '@pdv/shared'
 
 
 const AGENT_MODE = process.env.AGENT_MODE === 'true'
@@ -89,12 +90,17 @@ interface PrintPayload {
   tableNumber: number | null
   customerName: string | null
   customerAddress: string | null
-  items: { name: string; qty: number; unitPrice: number; subtotal: number }[]
+  // guest: nome da pessoa dona do item (null = mesa). Agente antigo ignora.
+  items: { name: string; qty: number; unitPrice: number; subtotal: number; guest?: string | null }[]
   subtotal: number
   discount: number
   total: number
-  payments: { method: string; amount: number }[]
+  payments: { method: string; amount: number; guest?: string | null }[]
   troco: number
+  // Conta de uma pessoa só (divisão por pessoa). Ausente = mesa toda.
+  guestName?: string | null
+  // Resumo por pessoa quando a mesa tem pessoas (conta da mesa toda)
+  guestSummary?: { name: string; total: number; paid: number }[]
 }
 
 export const PrintService = {
@@ -104,8 +110,8 @@ export const PrintService = {
     const sale = await prisma.sale.findUniqueOrThrow({
       where: { id: saleId },
       include: {
-        items: { include: { product: true }, where: { cancelled: false } },
-        payments: true,
+        items: { include: { product: true, guest: true }, where: { cancelled: false } },
+        payments: { include: { guest: true } },
         operator: true,
         table: true,
       },
@@ -133,11 +139,12 @@ export const PrintService = {
         qty: i.qty,
         unitPrice: Number(i.unitPrice),
         subtotal: Number(i.unitPrice) * i.qty,
+        guest: i.guest?.name ?? null,
       })),
       subtotal: Number(sale.subtotal),
       discount: Number(sale.discount),
       total: Number(sale.total),
-      payments: sale.payments.map((p) => ({ method: p.method, amount: Number(p.amount) })),
+      payments: sale.payments.map((p) => ({ method: p.method, amount: Number(p.amount), guest: p.guest?.name ?? null })),
       troco,
     }
 
@@ -167,38 +174,82 @@ export const PrintService = {
 
   // Creates a bill job when "pedir conta" is called — prints before payment.
   // Used for tables: flow is request-bill → print → payment (not after payment).
-  async createBillJob(saleId: string) {
+  // guestId: imprime só a conta daquela pessoa (itens dela). Itens da mesa não
+  // são rateados: ficam na conta da mesa — ver computeShares em @pdv/shared.
+  async createBillJob(saleId: string, guestId: string | null = null) {
     const sale = await prisma.sale.findUniqueOrThrow({
       where: { id: saleId },
       include: {
-        items: { include: { product: true }, where: { cancelled: false } },
-        payments: true,
+        items: { include: { product: true, guest: true }, where: { cancelled: false } },
+        payments: { include: { guest: true } },
         operator: true,
         table: true,
+        guests: { orderBy: { position: 'asc' } },
       },
     })
 
-    const payload: PrintPayload = {
-      saleId: sale.id,
-      saleType: sale.type,
-      date: new Date().toISOString(),
-      operatorName: sale.operator.name,
-      tableNumber: sale.table?.number ?? null,
-      customerName: sale.customerName ?? null,
-      customerAddress: sale.customerAddress ?? null,
-      items: sale.items.map((i) => ({
-        name: i.product.name,
-        qty: i.qty,
-        unitPrice: Number(i.unitPrice),
-        subtotal: Number(i.unitPrice) * i.qty,
-      })),
-      subtotal: Number(sale.subtotal),
-      discount: Number(sale.discount),
-      total: Number(sale.total),
-      // Pagamentos parciais já feitos na mesa — aparecem no papel como extrato,
-      // abaixo do TOTAL cheio (ver loop de payments no template do agente).
-      payments: sale.payments.map((p) => ({ method: p.method, amount: Number(p.amount) })),
-      troco: 0,
+    const guest = guestId ? sale.guests.find((g) => g.id === guestId) : null
+    if (guestId && !guest) throw new Error('Pessoa não encontrada nesta mesa')
+
+    const shares = computeShares({
+      items: sale.items.map((i) => ({ guestId: i.guestId ?? null, qty: i.qty, unitPrice: Number(i.unitPrice), cancelled: i.cancelled })),
+      payments: sale.payments.map((p) => ({ guestId: p.guestId ?? null, amount: Number(p.amount) })),
+      guests: sale.guests.map((g) => ({ id: g.id, name: g.name, position: g.position })),
+    })
+
+    let payload: PrintPayload
+    if (guest) {
+      const share = shares.guests.find((g) => g.guestId === guest.id)!
+      const own = sale.items.filter((i) => i.guestId === guest.id)
+      const items: PrintPayload['items'] = own.map((i) => ({
+        name: i.product.name, qty: i.qty, unitPrice: Number(i.unitPrice), subtotal: Number(i.unitPrice) * i.qty, guest: guest.name,
+      }))
+      payload = {
+        saleId: sale.id,
+        saleType: sale.type,
+        date: new Date().toISOString(),
+        operatorName: sale.operator.name,
+        tableNumber: sale.table?.number ?? null,
+        customerName: sale.customerName ?? null,
+        customerAddress: sale.customerAddress ?? null,
+        items,
+        subtotal: share.totalCents / 100,
+        discount: 0,
+        total: share.totalCents / 100,
+        payments: sale.payments.filter((p) => p.guestId === guest.id).map((p) => ({ method: p.method, amount: Number(p.amount), guest: guest.name })),
+        troco: 0,
+        guestName: guest.name,
+      }
+    } else {
+      payload = {
+        saleId: sale.id,
+        saleType: sale.type,
+        date: new Date().toISOString(),
+        operatorName: sale.operator.name,
+        tableNumber: sale.table?.number ?? null,
+        customerName: sale.customerName ?? null,
+        customerAddress: sale.customerAddress ?? null,
+        items: sale.items.map((i) => ({
+          name: i.product.name,
+          qty: i.qty,
+          unitPrice: Number(i.unitPrice),
+          subtotal: Number(i.unitPrice) * i.qty,
+          guest: i.guest?.name ?? null,
+        })),
+        subtotal: Number(sale.subtotal),
+        discount: Number(sale.discount),
+        total: Number(sale.total),
+        // Pagamentos parciais já feitos na mesa — aparecem no papel como extrato,
+        // abaixo do TOTAL cheio (ver loop de payments no template do agente).
+        payments: sale.payments.map((p) => ({ method: p.method, amount: Number(p.amount), guest: p.guest?.name ?? null })),
+        troco: 0,
+        ...(sale.guests.length > 0 && {
+          guestSummary: [
+            ...shares.guests.map((g) => ({ name: g.name, total: g.totalCents / 100, paid: g.paidCents / 100 })),
+            ...(shares.sharedCents > 0 ? [{ name: 'Mesa (compartilhado)', total: shares.sharedCents / 100, paid: shares.unassignedPaidCents / 100 }] : []),
+          ],
+        }),
+      }
     }
 
     if (!AGENT_MODE) {
