@@ -12,6 +12,27 @@ const METHOD_LABELS: Record<string, string> = {
   pix: 'Pix', voucher: 'Voucher', conta_receita: 'Conta Receita',
 }
 
+// Linhas de pagamento da CONTA (pedir conta) sem mexer no agente: o modelo
+// imprime o texto de `method` quando não é uma forma conhecida. Então cada
+// pagamento vira "Pago Pix - Victor 21:30" e a última linha é o saldo.
+function billPaymentLines(
+  payments: { method: string; amount: number; guest?: string | null; paidAt: Date }[],
+  totalCents: number,
+  who: string | null,
+): { method: string; amount: number; guest?: string | null }[] {
+  const lines = payments.map((p) => {
+    const hora = p.paidAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })
+    return { method: `Pago ${METHOD_LABELS[p.method] ?? p.method}${p.guest ? ' - ' + p.guest : ''} ${hora}`, amount: p.amount, guest: p.guest ?? null }
+  })
+  const paidCents = payments.reduce((s, p) => s + Math.round(p.amount * 100), 0)
+  const dueCents = Math.max(0, totalCents - paidCents)
+  if (payments.length === 0) return lines
+  lines.push(dueCents > 0
+    ? { method: who ? `FALTA PAGAR (${who})` : 'FALTA PAGAR', amount: dueCents / 100, guest: null }
+    : { method: who ? `QUITADO (${who})` : 'QUITADO', amount: 0, guest: null })
+  return lines
+}
+
 function fmt(n: number) { return `R$ ${n.toFixed(2).replace('.', ',')}` }
 
 // Build an ESC/POS receipt using node-thermal-printer and send it to the
@@ -216,7 +237,10 @@ export const PrintService = {
         subtotal: share.totalCents / 100,
         discount: 0,
         total: share.totalCents / 100,
-        payments: sale.payments.filter((p) => p.guestId === guest.id).map((p) => ({ method: p.method, amount: Number(p.amount), guest: guest.name })),
+        payments: billPaymentLines(
+          sale.payments.filter((p) => p.guestId === guest.id).map((p) => ({ method: p.method, amount: Number(p.amount), guest: guest.name, paidAt: p.paidAt })),
+          share.totalCents, guest.name,
+        ),
         troco: 0,
         guestName: guest.name,
       }
@@ -239,9 +263,12 @@ export const PrintService = {
         subtotal: Number(sale.subtotal),
         discount: Number(sale.discount),
         total: Number(sale.total),
-        // Pagamentos parciais já feitos na mesa — aparecem no papel como extrato,
-        // abaixo do TOTAL cheio (ver loop de payments no template do agente).
-        payments: sale.payments.map((p) => ({ method: p.method, amount: Number(p.amount), guest: p.guest?.name ?? null })),
+        // Pagamentos parciais já feitos na mesa — aparecem no papel como extrato
+        // abaixo do TOTAL cheio: "Pago Pix - Victor 21:30" + "FALTA PAGAR".
+        payments: billPaymentLines(
+          sale.payments.map((p) => ({ method: p.method, amount: Number(p.amount), guest: p.guest?.name ?? null, paidAt: p.paidAt })),
+          Math.round(Number(sale.total) * 100), null,
+        ),
         troco: 0,
         ...(sale.guests.length > 0 && {
           guestSummary: [

@@ -35,6 +35,8 @@ export const AddItemSchema = z.object({
   qty: z.number().int().positive(),
   // null/ausente = item da mesa (compartilhado)
   guestId: z.string().nullable().optional(),
+  // Garçom que está lançando (aparelho); ausente = cai no cabeçalho X-Operator-Id
+  operatorId: z.string().optional(),
 })
 export type AddItemInput = z.infer<typeof AddItemSchema>
 

@@ -32,4 +32,9 @@ export const reportsRoutes: FastifyPluginAsync = async (app) => {
     const { from, to } = parseRange(request.query as Record<string, string>)
     return ReportService.getByOperator(from, to)
   })
+
+  app.get('/by-waiter', async (request) => {
+    const { from, to } = parseRange(request.query as Record<string, string>)
+    return ReportService.getByWaiter(from, to)
+  })
 }

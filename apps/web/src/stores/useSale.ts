@@ -47,7 +47,7 @@ interface SaleState {
   clearError: () => void
 }
 
-export const useSale = create<SaleState>((set) => ({
+export const useSale = create<SaleState>((set, get) => ({
   saleOperator: null,
   currentSale: null,
   isLoading: false,
@@ -93,6 +93,8 @@ export const useSale = create<SaleState>((set) => ({
         productId,
         qty,
         guestId,
+        // garçom deste aparelho: o item conta para ele, não para quem abriu a mesa
+        operatorId: get().saleOperator?.id,
       })
       set({ currentSale: sale })
     } catch (err) {
@@ -111,7 +113,7 @@ export const useSale = create<SaleState>((set) => ({
 
   cancelItem: async (saleId, itemId) => {
     try {
-      const sale = await api.patch<SaleDTO>(`/sales/${saleId}/items/${itemId}/cancel`, {})
+      const sale = await api.patch<SaleDTO>(`/sales/${saleId}/items/${itemId}/cancel`, { operatorId: get().saleOperator?.id })
       set({ currentSale: sale })
     } catch (err) {
       set({ error: (err as Error).message })

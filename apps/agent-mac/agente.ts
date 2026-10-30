@@ -113,6 +113,8 @@ interface PrintPayload {
   // Divisão por pessoa: conta de uma pessoa só / resumo por pessoa (mesa toda)
   guestName?: string | null
   guestSummary?: { name: string; total: number; paid: number }[]
+  // Ticket de pedido no balcão (bebidas) — payload no formato de comprovante
+  counterTicket?: boolean
 }
 
 const METHOD_LABELS: Record<string, string> = {
@@ -132,7 +134,7 @@ async function printReceipt(payload: PrintPayload): Promise<void> {
   printer.alignCenter()
   printer.setTextDoubleHeight()
   printer.bold(true)
-  printer.println('Comprovante')
+  printer.println(payload.counterTicket ? 'PEDIDO - BALCAO' : 'Comprovante')
   printer.bold(false)
   printer.setTextNormal()
   printer.drawLine()
@@ -198,7 +200,7 @@ async function printReceipt(payload: PrintPayload): Promise<void> {
 
   printer.drawLine()
   printer.alignCenter()
-  printer.println('Obrigado pela visita!')
+  if (!payload.counterTicket) printer.println('Obrigado pela visita!')
   printer.newLine()
   printer.cut()
 

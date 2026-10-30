@@ -3,9 +3,9 @@ import { api } from './api'
 
 // Chaves de funcionalidade vindas de GET /config (features). Carregadas uma vez
 // por sessão; enquanto não chegam, valem os padrões abaixo.
-export interface Features { guests: boolean }
+export interface Features { guests: boolean; counterTickets: boolean }
 
-const DEFAULTS: Features = { guests: false }
+const DEFAULTS: Features = { guests: false, counterTickets: false }
 let cached: Features | null = null
 let pending: Promise<Features> | null = null
 

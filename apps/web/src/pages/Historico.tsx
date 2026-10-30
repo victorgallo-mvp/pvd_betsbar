@@ -6,7 +6,7 @@ import { api } from '../lib/api'
 // ── Types ─────────────────────────────────────────────────────
 
 interface HistPayment { id: string; method: string; amount: number; paidAt: string; guestId: string | null }
-interface HistItem    { id: string; productName: string; qty: number; subtotal: number; cancelled: boolean; guestId: string | null }
+interface HistItem    { id: string; productName: string; qty: number; subtotal: number; cancelled: boolean; guestId: string | null; addedByName: string | null }
 interface HistGuest   { id: string; name: string; position: number }
 interface HistSale {
   id: string
@@ -93,6 +93,8 @@ export default function Historico() {
   const [loading, setLoading]               = useState(false)
   const [expanded, setExpanded]             = useState<Set<number>>(new Set())
   const [editingPayment, setEditingPayment] = useState<HistPayment | null>(null)
+  // Filtro por garçom: mesas que ele abriu ou em que lançou algum item
+  const [waiter, setWaiter] = useState<string | null>(null)
 
   const load = useCallback(async (d: string) => {
     setLoading(true)
@@ -107,8 +109,18 @@ export default function Historico() {
 
   useEffect(() => { load(date) }, [date, load])
 
+  // Garçom de cada item: quem lançou; itens antigos sem o campo caem em quem abriu a mesa
+  const launcher = (sale: HistSale, item: HistItem) => item.addedByName ?? sale.operatorName
+  const waiters = [...new Set(sales.flatMap(s => [s.operatorName, ...s.items.map(i => launcher(s, i))]))].sort()
+  const visibleSales = waiter
+    ? sales.filter(s => s.operatorName === waiter || s.items.some(i => launcher(s, i) === waiter))
+    : sales
+  const waiterTotal = waiter
+    ? sales.reduce((sum, s) => sum + s.items.filter(i => !i.cancelled && launcher(s, i) === waiter).reduce((a, i) => a + i.subtotal, 0), 0)
+    : 0
+
   // Group by table number, sorted
-  const byTable = [...sales
+  const byTable = [...visibleSales
     .reduce((map, sale) => {
       const t = sale.tableNumber ?? 0
       if (!map.has(t)) map.set(t, [])
@@ -161,6 +173,28 @@ export default function Historico() {
           {byTable.length} mesa{byTable.length !== 1 ? 's' : ''}
         </span>
       </div>
+
+      {/* Filtro por garçom */}
+      {waiters.length > 0 && (
+        <div className="bg-slate-800/60 border-b border-slate-700 px-3 py-2 shrink-0 flex items-center gap-1.5 overflow-x-auto">
+          <span className="text-[10px] uppercase text-slate-500 shrink-0 mr-1">Garçom</span>
+          <button onClick={() => setWaiter(null)}
+            className={`px-3 py-1 rounded-full text-xs font-medium touch-btn shrink-0 ${waiter === null ? 'bg-emerald-700 text-white' : 'bg-slate-700 text-slate-400'}`}>
+            Todos
+          </button>
+          {waiters.map(w => (
+            <button key={w} onClick={() => setWaiter(w === waiter ? null : w)}
+              className={`px-3 py-1 rounded-full text-xs font-medium touch-btn shrink-0 ${waiter === w ? 'bg-sky-700 text-white' : 'bg-slate-700 text-slate-400'}`}>
+              {w}
+            </button>
+          ))}
+          {waiter && (
+            <span className="text-xs text-slate-400 ml-auto shrink-0 pl-3">
+              lançou <span className="text-sky-300 font-semibold">{fmtBRL(waiterTotal)}</span>
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
@@ -216,7 +250,7 @@ export default function Historico() {
                       <span className="text-xs text-slate-500">
                         {fmtTime(sale.openedAt)}
                         {sale.closedAt ? ` → ${fmtTime(sale.closedAt)}` : ''}
-                        {' · '}{sale.operatorName}
+                        {' · abriu: '}<span className={sale.operatorName === waiter ? 'text-sky-300' : ''}>{sale.operatorName}</span>
                       </span>
                       <span className="text-sm font-semibold text-slate-200">{fmtBRL(sale.total)}</span>
                     </div>
@@ -231,12 +265,21 @@ export default function Historico() {
                               <span className="text-slate-500 font-normal">{fmtBRL(gr.items.reduce((s, i) => s + i.subtotal, 0))}</span>
                             </div>
                           )}
-                          {gr.items.map(item => (
-                            <div key={item.id} className="flex justify-between text-xs text-slate-400">
-                              <span>{item.qty}× {item.productName}</span>
-                              <span>{fmtBRL(item.subtotal)}</span>
-                            </div>
-                          ))}
+                          {gr.items.map(item => {
+                            const who = launcher(sale, item)
+                            const mine = waiter ? who === waiter : false
+                            return (
+                              <div key={item.id} className={`flex justify-between text-xs ${waiter && !mine ? 'text-slate-600' : 'text-slate-400'}`}>
+                                <span>
+                                  {item.qty}× {item.productName}
+                                  <span className={`ml-1.5 text-[10px] ${mine ? 'text-sky-300' : 'text-slate-500'}`}>
+                                    {who}{item.addedByName ? '' : ' (abriu)'}
+                                  </span>
+                                </span>
+                                <span>{fmtBRL(item.subtotal)}</span>
+                              </div>
+                            )
+                          })}
                         </div>
                       ))}
                     </div>

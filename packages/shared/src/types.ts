@@ -78,6 +78,7 @@ export interface ProductDTO {
   price: number
   isFavorite: boolean
   sendToKitchen: boolean
+  sendToCounter: boolean
   active: boolean
 }
 
@@ -100,8 +101,11 @@ export interface SaleItemDTO {
   sentToProduction: boolean
   cancelled: boolean
   sendToKitchen: boolean
+  sendToCounter: boolean
   notes: string | null
   guestId: string | null
+  addedById: string | null
+  addedByName: string | null
 }
 
 // Pessoa dentro da mesa (divisão por pessoa)

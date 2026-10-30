@@ -3,6 +3,16 @@ import { prisma } from '../lib/prisma.js'
 import { broadcast } from '../ws/broadcast.js'
 import { PrintService } from './PrintService.js'
 import { Diag } from './DiagService.js'
+import { ctx } from '../lib/reqContext.js'
+import { readConfig } from '../appConfig.js'
+
+// Operador que está agindo neste aparelho: corpo da requisição ou cabeçalho X-Operator-Id
+async function actingOperator(bodyOperatorId?: string | null) {
+  const id = bodyOperatorId || ctx()?.operatorId || null
+  if (!id) return null
+  const u = await prisma.user.findUnique({ where: { id }, select: { id: true, name: true } })
+  return u ?? null
+}
 
 // --- Prisma payload types ---
 
@@ -12,7 +22,7 @@ type SaleRow = Prisma.SaleGetPayload<{
   include: {
     operator: true
     table: true
-    items: { include: { product: true } }
+    items: { include: { product: true; addedBy: { select: { id: true; name: true } } } }
     payments: true
     guests: true
   }
@@ -60,8 +70,11 @@ function saleToDTO(s: SaleRow) {
       sentToProduction: i.sentToProduction,
       cancelled: i.cancelled,
       sendToKitchen: i.product.sendToKitchen,
+      sendToCounter: i.product.sendToCounter,
       notes: i.notes,
       guestId: i.guestId ?? null,
+      addedById: i.addedById ?? null,
+      addedByName: i.addedBy?.name ?? null,
     })),
     payments: s.payments.map((p) => ({
       id: p.id,
@@ -79,7 +92,7 @@ function saleToDTO(s: SaleRow) {
 const saleInclude = {
   operator: true,
   table: true,
-  items: { include: { product: true } },
+  items: { include: { product: true, addedBy: { select: { id: true, name: true } } } },
   payments: true,
   guests: true,
 } as const
@@ -90,6 +103,41 @@ async function assertGuest(saleId: string, guestId: string | null | undefined) {
   const g = await prisma.saleGuest.findUnique({ where: { id: guestId } })
   if (!g || g.saleId !== saleId) throw new Error('Pessoa não encontrada nesta mesa')
   return g
+}
+
+// Ticket de pedido no balcão SEM mexer no agente: sai como job tipo 'receipt',
+// que o executável imprime com o modelo de comprovante. O que dá para controlar
+// pelo payload: a linha logo abaixo de "Cliente:" (campo customerAddress) vira o
+// aviso "*** PEDIDO BALCAO - NAO E CONTA ***"; os itens são só os de balcão.
+// Título "Comprovante", TOTAL e "Obrigado pela visita!" são fixos no modelo.
+export function buildCounterTicket(input: {
+  saleId: string
+  tableNumber: number | null
+  customerName: string | null
+  saleType: string
+  operatorName: string
+  items: { qty: number; name: string; unitPrice: number; guest: string | null }[]
+}) {
+  const label = input.customerName ?? (input.tableNumber ? `Mesa ${input.tableNumber}` : input.saleType === 'counter' ? 'Balcao' : 'Delivery')
+  const items = input.items.map((i) => ({
+    name: i.guest ? `${i.name} (${i.guest})` : i.name,
+    qty: i.qty, unitPrice: i.unitPrice, subtotal: i.unitPrice * i.qty, guest: i.guest,
+  }))
+  const total = items.reduce((s, i) => s + i.subtotal, 0)
+  return {
+    saleId: input.saleId,
+    saleType: input.saleType,
+    date: new Date().toISOString(),
+    operatorName: input.operatorName,
+    tableNumber: input.tableNumber,
+    customerName: label,
+    customerAddress: '*** PEDIDO BALCAO - NAO E CONTA ***',
+    items,
+    subtotal: total, discount: 0, total,
+    payments: [] as { method: string; amount: number }[],
+    troco: 0,
+    counterTicket: true,
+  }
 }
 
 // --- Service ---
@@ -131,7 +179,7 @@ export const SaleService = {
 
     const rows = await prisma.product.findMany({
       where,
-      select: { id: true, categoryId: true, name: true, price: true, isFavorite: true, sendToKitchen: true, active: true },
+      select: { id: true, categoryId: true, name: true, price: true, isFavorite: true, sendToKitchen: true, sendToCounter: true, active: true },
       orderBy: { name: 'asc' },
     })
     return rows.map((p) => ({ ...p, price: Number(p.price) }))
@@ -238,10 +286,11 @@ export const SaleService = {
   },
 
   // Add item — merges if same product is not yet sent to production
-  async addItem(saleId: string, input: { productId: string; qty: number; guestId?: string | null }) {
+  async addItem(saleId: string, input: { productId: string; qty: number; guestId?: string | null; operatorId?: string }) {
     const product = await prisma.product.findUniqueOrThrow({ where: { id: input.productId } })
     const guest = await assertGuest(saleId, input.guestId)
     const guestId = guest?.id ?? null
+    const actor = await actingOperator(input.operatorId)
 
     // Só junta com item pendente da MESMA pessoa (ou da mesa)
     const existing = await prisma.saleItem.findFirst({
@@ -257,7 +306,7 @@ export const SaleService = {
       itemId = existing.id
     } else {
       const created = await prisma.saleItem.create({
-        data: { saleId, productId: input.productId, qty: input.qty, unitPrice: product.price, guestId },
+        data: { saleId, productId: input.productId, qty: input.qty, unitPrice: product.price, guestId, addedById: actor?.id ?? null },
       })
       itemId = created.id
     }
@@ -271,7 +320,7 @@ export const SaleService = {
         itemId, productId: input.productId, productName: product.name, qty: input.qty,
         merged: !!existing, qtyBefore: existing?.qty ?? 0, qtyAfter: (existing?.qty ?? 0) + input.qty,
         saleStatus: result.status, customerName: result.customerName,
-        guestId, guestName: guest?.name ?? null,
+        guestId, guestName: guest?.name ?? null, addedById: actor?.id ?? null,
       },
     })
     if (result.status !== 'open' && result.status !== 'awaiting_payment') {
@@ -517,7 +566,7 @@ export const SaleService = {
   },
 
   // Cancel a sent item — marks cancelled + queues kitchen cancel notice
-  async cancelItem(saleId: string, itemId: string) {
+  async cancelItem(saleId: string, itemId: string, operatorId?: string) {
     const item = await prisma.saleItem.findUniqueOrThrow({
       where: { id: itemId },
       include: {
@@ -526,8 +575,9 @@ export const SaleService = {
         sale: { include: { operator: true, table: true } },
       },
     })
+    const actor = await actingOperator(operatorId)
 
-    await prisma.saleItem.update({ where: { id: itemId }, data: { cancelled: true } })
+    await prisma.saleItem.update({ where: { id: itemId }, data: { cancelled: true, cancelledById: actor?.id ?? null } })
 
     Diag.log({
       type: 'sale.item_cancelled',
@@ -537,8 +587,27 @@ export const SaleService = {
         itemId, productId: item.productId, productName: item.product.name, qty: item.qty,
         sentToProduction: item.sentToProduction, kitchen: item.product.sendToKitchen,
         itemAgeMs: Date.now() - item.createdAt.getTime(), customerName: item.sale.customerName,
+        addedById: item.addedById, cancelledById: actor?.id ?? null,
       },
     })
+
+    // Aviso de cancelamento no balcão (mesmo modelo do ticket de pedido: job tipo comprovante)
+    if (item.sentToProduction && item.product.sendToCounter && readConfig().features.counterTickets) {
+      const s = item.sale
+      await prisma.printJob.create({
+        data: {
+          saleId,
+          type: 'receipt',
+          status: 'pending',
+          triggerEvent: 'counter_cancel',
+          payload: JSON.stringify(buildCounterTicket({
+            saleId, tableNumber: s.table?.number ?? null, customerName: s.customerName, saleType: s.type,
+            operatorName: actor?.name ?? s.operator.name,
+            items: [{ qty: item.qty, name: `[CANCELAR] ${item.product.name}`, unitPrice: Number(item.unitPrice), guest: item.guest?.name ?? null }],
+          })),
+        },
+      })
+    }
 
     if (item.sentToProduction && item.product.sendToKitchen) {
       const s = item.sale

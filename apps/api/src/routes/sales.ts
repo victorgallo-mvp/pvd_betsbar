@@ -130,8 +130,9 @@ export const salesRoutes: FastifyPluginAsync = async (app) => {
   // PATCH /sales/:id/items/:itemId/cancel — cancel a sent item + queue kitchen cancel notice
   app.patch('/:id/items/:itemId/cancel', async (request, reply) => {
     const { id, itemId } = request.params as { id: string; itemId: string }
+    const body = (request.body ?? {}) as { operatorId?: string }
     try {
-      return await SaleService.cancelItem(id, itemId)
+      return await SaleService.cancelItem(id, itemId, body.operatorId)
     } catch (err) {
       return reply.status(400).send({ error: (err as Error).message })
     }

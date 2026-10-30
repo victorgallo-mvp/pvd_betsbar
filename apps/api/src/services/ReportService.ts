@@ -83,4 +83,57 @@ export const ReportService = {
 
     return Object.values(grouped).sort((a, b) => b.total - a.total)
   },
+
+  // Lançamentos por garçom: cada item conta para quem o lançou (addedById).
+  // Itens antigos sem o campo caem em quem abriu a mesa (fallback), contados à parte.
+  async getByWaiter(from: Date, to: Date) {
+    const sales = await prisma.sale.findMany({
+      where: { status: 'paid', closedAt: { gte: from, lte: to } },
+      include: {
+        operator: { select: { name: true } },
+        items: { include: { addedBy: { select: { name: true } } } },
+      },
+    })
+    type Row = { operatorId: string; name: string; items: number; total: number; cancelledItems: number; cancelledTotal: number; tablesOpened: number; fallbackItems: number }
+    const rows: Record<string, Row> = {}
+    const get = (id: string, name: string) => (rows[id] ??= { operatorId: id, name, items: 0, total: 0, cancelledItems: 0, cancelledTotal: 0, tablesOpened: 0, fallbackItems: 0 })
+    for (const sale of sales) {
+      get(sale.operatorId, sale.operator.name).tablesOpened++
+      for (const it of sale.items) {
+        const id = it.addedById ?? sale.operatorId
+        const r = get(id, it.addedBy?.name ?? sale.operator.name)
+        const val = Number(it.unitPrice) * it.qty
+        if (!it.addedById) r.fallbackItems += it.qty
+        if (it.cancelled) { r.cancelledItems += it.qty; r.cancelledTotal += val; continue }
+        r.items += it.qty
+        r.total += val
+      }
+    }
+    return Object.values(rows).sort((a, b) => b.total - a.total)
+  },
+
+  // Preenche addedById dos itens antigos a partir do diário (sale.item_added traz
+  // itemId e o operador do aparelho). Idempotente: só mexe em itens sem o campo.
+  async backfillAddedBy() {
+    const events = await prisma.diagEvent.findMany({
+      where: { type: 'sale.item_added', operatorId: { not: null } },
+      select: { operatorId: true, data: true },
+      orderBy: { createdAt: 'asc' },
+    })
+    const byItem = new Map<string, string>()
+    for (const e of events) {
+      try {
+        const itemId = (JSON.parse(e.data ?? '{}') as { itemId?: string }).itemId
+        if (itemId && !byItem.has(itemId)) byItem.set(itemId, e.operatorId!)
+      } catch { /* ignora evento malformado */ }
+    }
+    const users = new Set((await prisma.user.findMany({ select: { id: true } })).map((u) => u.id))
+    let updated = 0
+    for (const [itemId, operatorId] of byItem) {
+      if (!users.has(operatorId)) continue
+      const r = await prisma.saleItem.updateMany({ where: { id: itemId, addedById: null }, data: { addedById: operatorId } })
+      updated += r.count
+    }
+    return { events: events.length, itemsInDiary: byItem.size, updated }
+  },
 }

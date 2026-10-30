@@ -1,12 +1,16 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { AdminService } from '../services/AdminService.js'
+import { ReportService } from '../services/ReportService.js'
 
 export const adminRoutes: FastifyPluginAsync = async (app) => {
+  // POST /admin/backfill-added-by — preenche "lançado por" dos itens antigos a partir do diário
+  app.post('/backfill-added-by', async () => ReportService.backfillAddedBy())
+
   // ── Products ──────────────────────────────────────────────
   app.get('/products', async () => AdminService.listProducts())
 
   app.post('/products', async (request, reply) => {
-    const body = request.body as { categoryId: string; name: string; price: number; isFavorite?: boolean; sendToKitchen?: boolean }
+    const body = request.body as { categoryId: string; name: string; price: number; isFavorite?: boolean; sendToKitchen?: boolean; sendToCounter?: boolean }
     if (!body.categoryId || !body.name || body.price == null)
       return reply.status(400).send({ error: 'categoryId, name e price são obrigatórios' })
     return reply.status(201).send(
@@ -14,6 +18,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
         ...body,
         isFavorite: body.isFavorite ?? false,
         sendToKitchen: body.sendToKitchen ?? true,
+        sendToCounter: body.sendToCounter ?? false,
       }),
     )
   })

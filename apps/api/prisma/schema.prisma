@@ -16,6 +16,8 @@ model User {
   createdAt    DateTime      @default(now())
   sales        Sale[]
   cashSessions CashSession[]
+  addedItems     SaleItem[] @relation("ItemAddedBy")
+  cancelledItems SaleItem[] @relation("ItemCancelledBy")
 }
 
 model Category {
@@ -36,6 +38,8 @@ model Product {
   price           Decimal
   isFavorite      Boolean    @default(false)
   sendToKitchen   Boolean    @default(true)
+  // Ticket de pedido na impressora do balcão (bebidas para o barman)
+  sendToCounter   Boolean    @default(false)
   active          Boolean    @default(true)
   saleItems       SaleItem[]
 }
@@ -102,6 +106,14 @@ model SaleItem {
   createdAt        DateTime @default(now())
   guestId          String?
   guest            SaleGuest? @relation(fields: [guestId], references: [id], onDelete: SetNull)
+  // Quem lançou / cancelou o item (garçom do aparelho), para bonificação.
+  // Nulo em itens antigos: relatório cai em quem abriu a mesa.
+  addedById        String?
+  addedBy          User?      @relation("ItemAddedBy", fields: [addedById], references: [id], onDelete: SetNull)
+  cancelledById    String?
+  cancelledBy      User?      @relation("ItemCancelledBy", fields: [cancelledById], references: [id], onDelete: SetNull)
+
+  @@index([addedById])
 }
 
 model Payment {

@@ -9,7 +9,7 @@ import { api } from '../lib/api'
 // ─── Types ───────────────────────────────────────────────────
 
 interface Category { id: string; name: string; color: string; icon: string; displayOrder: number; active: boolean }
-interface Product { id: string; categoryId: string; name: string; price: number; isFavorite: boolean; sendToKitchen: boolean; active: boolean; category: { id: string; name: string; color: string } }
+interface Product { id: string; categoryId: string; name: string; price: number; isFavorite: boolean; sendToKitchen: boolean; sendToCounter: boolean; active: boolean; category: { id: string; name: string; color: string } }
 interface TableRow { id: string; number: number; status: string }
 interface UserRow { id: string; name: string; role: string; active: boolean }
 
@@ -78,15 +78,15 @@ function ProdutosTab({ categories }: { categories: Category[] }) {
   const [editing, setEditing] = useState<Product | null>(null)
   const [adding, setAdding] = useState(false)
   const [deleting, setDeleting] = useState<Product | null>(null)
-  const [form, setForm] = useState({ categoryId: '', name: '', price: '', isFavorite: false, sendToKitchen: true })
+  const [form, setForm] = useState({ categoryId: '', name: '', price: '', isFavorite: false, sendToKitchen: true, sendToCounter: false })
 
   const load = () => api.get<Product[]>('/admin/products').then(setItems)
   useEffect(() => { load() }, [])
 
   const filtered = items.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
 
-  const openAdd = () => { setForm({ categoryId: categories[0]?.id ?? '', name: '', price: '', isFavorite: false, sendToKitchen: true }); setAdding(true) }
-  const openEdit = (p: Product) => { setForm({ categoryId: p.categoryId, name: p.name, price: String(p.price), isFavorite: p.isFavorite, sendToKitchen: p.sendToKitchen }); setEditing(p) }
+  const openAdd = () => { setForm({ categoryId: categories[0]?.id ?? '', name: '', price: '', isFavorite: false, sendToKitchen: true, sendToCounter: false }); setAdding(true) }
+  const openEdit = (p: Product) => { setForm({ categoryId: p.categoryId, name: p.name, price: String(p.price), isFavorite: p.isFavorite, sendToKitchen: p.sendToKitchen, sendToCounter: p.sendToCounter ?? false }); setEditing(p) }
 
   const save = async () => {
     const data = { ...form, price: Number(form.price) }
@@ -122,6 +122,10 @@ function ProdutosTab({ categories }: { categories: Category[] }) {
         <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
           <input type="checkbox" checked={form.sendToKitchen} onChange={e => setForm(f => ({ ...f, sendToKitchen: e.target.checked }))} className="accent-emerald-500" />
           Enviar para cozinha ao concluir pedido
+        </label>
+        <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+          <input type="checkbox" checked={form.sendToCounter} onChange={e => setForm(f => ({ ...f, sendToCounter: e.target.checked }))} className="accent-sky-500" />
+          Imprimir pedido no balcão (bebidas, para o barman)
         </label>
       </div>
       <SaveBtn onClick={save} disabled={!form.name || !form.price || !form.categoryId} />

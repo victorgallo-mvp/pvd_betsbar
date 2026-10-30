@@ -14,6 +14,7 @@ interface Summary {
 interface ByMethod  { method: string; count: number; total: number; pct: number }
 interface ByProduct { productId: string; name: string; qty: number; revenue: number; pct: number }
 interface ByOperator{ operatorId: string; name: string; count: number; total: number }
+interface ByWaiter  { operatorId: string; name: string; items: number; total: number; cancelledItems: number; cancelledTotal: number; tablesOpened: number; fallbackItems: number }
 
 // ─── Helpers ──────────────────────────────────────────────────
 
@@ -141,19 +142,60 @@ function ByProductTab({ data }: { data: ByProduct[] }) {
   )
 }
 
-function ByOperatorTab({ data }: { data: ByOperator[] }) {
-  if (!data.length) return <Empty />
+function ByOperatorTab({ data, waiters }: { data: ByOperator[]; waiters: ByWaiter[] }) {
+  const [view, setView] = useState<'waiters' | 'openers'>('waiters')
+  const grand = waiters.reduce((s, w) => s + w.total, 0)
+  const fallback = waiters.reduce((s, w) => s + w.fallbackItems, 0)
   return (
-    <div className="p-4">
-      <Section title="">
-        {data.map(d => (
-          <div key={d.operatorId} className="flex items-center gap-3 py-1.5 border-b border-slate-800">
-            <span className="flex-1 text-sm text-slate-300">{d.name}</span>
-            <span className="text-slate-500 text-sm">{d.count} vendas</span>
-            <span className="text-slate-200 font-semibold text-sm w-28 text-right">{fmtBRL(d.total)}</span>
-          </div>
+    <div className="p-4 space-y-3">
+      <div className="flex gap-2">
+        {([['waiters', 'Lançamentos por garçom'], ['openers', 'Mesas abertas']] as const).map(([id, label]) => (
+          <button key={id} onClick={() => setView(id)}
+            className={`flex-1 py-2 rounded-xl text-xs font-semibold touch-btn border-2 ${view === id ? 'border-emerald-500 bg-emerald-900/30 text-emerald-300' : 'border-slate-700 text-slate-500'}`}>
+            {label}
+          </button>
         ))}
-      </Section>
+      </div>
+
+      {view === 'openers' && (!data.length ? <Empty /> : (
+        <Section title="Total das mesas por quem abriu">
+          {data.map(d => (
+            <div key={d.operatorId} className="flex items-center gap-3 py-1.5 border-b border-slate-800">
+              <span className="flex-1 text-sm text-slate-300">{d.name}</span>
+              <span className="text-slate-500 text-sm">{d.count} vendas</span>
+              <span className="text-slate-200 font-semibold text-sm w-28 text-right">{fmtBRL(d.total)}</span>
+            </div>
+          ))}
+        </Section>
+      ))}
+
+      {view === 'waiters' && (!waiters.length ? <Empty /> : (
+        <>
+          <Section title="Itens lançados por cada garçom (mesas pagas no período)">
+            {waiters.map((w, i) => (
+              <div key={w.operatorId} className="py-2 border-b border-slate-800">
+                <div className="flex items-center gap-3">
+                  <span className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${i === 0 ? 'bg-amber-500 text-black' : i === 1 ? 'bg-slate-400 text-black' : i === 2 ? 'bg-amber-800 text-white' : 'bg-slate-700 text-slate-300'}`}>{i + 1}</span>
+                  <span className="flex-1 text-sm text-slate-200 font-medium">{w.name}</span>
+                  <span className="text-slate-500 text-xs">{grand > 0 ? Math.round(100 * w.total / grand) : 0}%</span>
+                  <span className="text-emerald-400 font-semibold text-sm w-28 text-right">{fmtBRL(w.total)}</span>
+                </div>
+                <div className="flex gap-3 text-[11px] text-slate-500 pl-9 mt-0.5 flex-wrap">
+                  <span>{w.items} itens</span>
+                  <span>{w.tablesOpened} mesa{w.tablesOpened !== 1 ? 's' : ''} aberta{w.tablesOpened !== 1 ? 's' : ''}</span>
+                  {w.cancelledItems > 0 && <span className="text-rose-400">{w.cancelledItems} cancelado{w.cancelledItems !== 1 ? 's' : ''} ({fmtBRL(w.cancelledTotal)})</span>}
+                  {w.fallbackItems > 0 && <span className="text-amber-500">{w.fallbackItems} sem registro de quem lançou</span>}
+                </div>
+              </div>
+            ))}
+          </Section>
+          {fallback > 0 && (
+            <p className="text-[11px] text-slate-500 px-1">
+              Itens "sem registro" são anteriores ao controle por garçom e foram atribuídos a quem abriu a mesa.
+            </p>
+          )}
+        </>
+      ))}
     </div>
   )
 }
@@ -203,6 +245,7 @@ export default function Relatorio() {
   const [byMethod,    setByMethod]    = useState<ByMethod[]>([])
   const [byProduct,   setByProduct]   = useState<ByProduct[]>([])
   const [byOperator,  setByOperator]  = useState<ByOperator[]>([])
+  const [byWaiter,    setByWaiter]    = useState<ByWaiter[]>([])
 
   const range = computeRange(preset, custom)
   const qs = `?from=${range.from}&to=${range.to}`
@@ -210,13 +253,14 @@ export default function Relatorio() {
   const loadAll = useCallback(async () => {
     setLoading(true)
     try {
-      const [s, m, p, o] = await Promise.all([
+      const [s, m, p, o, w] = await Promise.all([
         api.get<Summary>(`/reports/summary${qs}`),
         api.get<ByMethod[]>(`/reports/by-method${qs}`),
         api.get<ByProduct[]>(`/reports/by-product${qs}`),
         api.get<ByOperator[]>(`/reports/by-operator${qs}`),
+        api.get<ByWaiter[]>(`/reports/by-waiter${qs}`).catch(() => [] as ByWaiter[]),
       ])
-      setSummary(s); setByMethod(m); setByProduct(p); setByOperator(o)
+      setSummary(s); setByMethod(m); setByProduct(p); setByOperator(o); setByWaiter(w)
     } finally {
       setLoading(false)
     }
@@ -280,7 +324,7 @@ export default function Relatorio() {
         {reportTab === 'resumo'     && <SummaryTab summary={summary} />}
         {reportTab === 'metodos'    && <ByMethodTab data={byMethod} />}
         {reportTab === 'produtos'   && <ByProductTab data={byProduct} />}
-        {reportTab === 'operadores' && <ByOperatorTab data={byOperator} />}
+        {reportTab === 'operadores' && <ByOperatorTab data={byOperator} waiters={byWaiter} />}
       </div>
     </div>
   )

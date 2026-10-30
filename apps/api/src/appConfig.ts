@@ -27,6 +27,8 @@ export interface AppConfig {
   features: {
     // Divisão por pessoa dentro da mesa (botões Mesa / Victor / Adriana... na comanda)
     guests: boolean
+    // Ticket de pedido (bebidas) na impressora do balcão, para produtos marcados "imprime no balcão"
+    counterTickets: boolean
   }
 }
 
@@ -39,7 +41,7 @@ const DEFAULTS: AppConfig = {
     port: 9100,
     width: 80,
   },
-  features: { guests: true },
+  features: { guests: true, counterTickets: false },
 }
 
 export function readConfig(): AppConfig {
